@@ -6,13 +6,16 @@
 Welcome to LordOfRings's documentation!
 =======================================
 
+Introduction
+============
+LordOfRings is a package for ...
+
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-
-.. automodule:: LordOfRings.generator
-   :members:
+   LordOfRings
 
 Indices and tables
 ==================
