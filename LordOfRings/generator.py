@@ -3,37 +3,44 @@ This module manage the creation of random circle in sparse matrix using numpy pa
 """
 
 import numpy as np
+import LordOfRings.inputHandling as ih
 
-def center_radius_generator(mu, sigma, rmin, rmax):
-    """center_radius_generator generate three random numbers, two from 
+def center_radius_generator(mu, sigma, rmin, rmax, n):
+    """center_radius_generator generate three random numbers, two from
     a normal distribution and one from an uniform distribuion (with randint).
-    The number extracted from the normal distribution are turned to integer 
+    The number extracted from the normal distribution are turned to integer
     values because we are working with matrix of integers.
 
     Parameters
     ----------
-    mu : float
+    mu : float, greater than or equal to zero, lower than the grid linear size
         The mean for the normal distribution.
-    sigma : float
+    sigma : float, positive value
         The standard deviation for the normal distribution.
-    rmax : float
+    rmax : float, positive value, greater than rmin
         The maximum radius for the uniform extraction.
-    rmax : float
+    rmin : float, greater than or equal to zero, lower than rmax
         The minimum radius for the uniform extraction.
+    n : int
+        The linear size of the grid.
 
     Returns
     -------
     (1d numpy-array [int], int)
-        the first element of the returned tuple contain the center position, 
+        the first element of the returned tuple contain the center position,
         the second element contain the radius.
 
     """
-    
-    # METTERE GLI ASSERT PER TESTARE GLI INPUT 
-    
+    # Testing input values
+    ih.raise_value_error(mu, min = 0, max = n)
+    ih.raise_value_error(sigma, min = 0)
+    ih.raise_value_error(rmax, min = rmin)
+    ih.raise_value_error(rmin, max = rmax)
+    ih.raise_value_error(n, min = 0)
+
     n_rand = np.random.normal(loc = mu, scale = sigma, size = 2).astype(int)
-    # If obtain negative values repeat the extraction
-    while np.sum(n_rand < 0) != 0:
+    # If obtain negative values or greater then the grid linear size repeat the extraction
+    while (n_rand < 0).any() or (n_rand > n).any():
         n_rand = np.random.normal(loc = mu, scale = sigma, size = 2).astype(int)
     c = n_rand
     r = np.random.randint(rmin, rmax)
@@ -41,7 +48,7 @@ def center_radius_generator(mu, sigma, rmin, rmax):
 
 
 def circle_generator(n, c, r):
-    """circle_generator create a sparse matrix nxn with values 0 or 1. 
+    """circle_generator create a sparse matrix nxn with values 0 or 1.
     The only elements of the matrix that are 1 belong to a circle of radius r
     and center c.
 
@@ -60,9 +67,13 @@ def circle_generator(n, c, r):
         The matrix of zeros containing the circle as 1 values.
 
     """
-    
-    # METTERE GLI ASSERT PER TESTARE GLI INPUT 
-    
+
+    # Testing input values
+    ih.raise_value_error(n, min = 0)
+    ih.raise_value_error(r, min = 0)
+    for ci in c:
+        ih.raise_value_error(ci, min = 0, max = n)
+
     v = np.arange(1, n+1)
     X, Y = np.meshgrid(v, v)
     deltaX = np.abs(X-c[0])
@@ -75,10 +86,10 @@ def circle_generator(n, c, r):
 
 
 def rnd_circle_pruning(circle, threshold = 0.5):
-    """rnd_circle_pruning modifies the input sparse matrix randomly removing 
-    some ones that belongs to the ring. The random selection uses a uniform 
+    """rnd_circle_pruning modifies the input sparse matrix randomly removing
+    some ones that belongs to the ring. The random selection uses a uniform
     distribution.
-    
+
     Parameters
     ----------
     circle : 2d numpy-array [int]
@@ -93,9 +104,11 @@ def rnd_circle_pruning(circle, threshold = 0.5):
         The matrix obtained from the random pruning.
 
     """
-    
-    # METTERE GLI ASSERT PER TESTARE GLI INPUT 
 
+    # Testing input values
+    if np.logical_and(circle != 0, circle != 1).any():
+        raise ValueError('The input circle must be a sparse matrix of ones.')
+    ih.raise_value_error(threshold, min = 0, max = 1)
 
     randvector = np.random.rand( len(circle[circle!=0]) )
     randvector[randvector > threshold] = 1
