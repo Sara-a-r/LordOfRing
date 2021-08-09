@@ -12,7 +12,7 @@ class TestCore(unittest.TestCase):
         mu = n/2
         sigma = mu/3
         rmin, rmax = mu/4, mu
-        c, r = lrgen.center_radius_generator(mu, sigma, rmin, rmax)
+        c, r = lrgen.center_radius_generator(mu, sigma, rmin, rmax, n)
         self.assertAlmostEqual(r,
                                (rmin + rmax)/2,
                                delta = (rmax - rmin)/2)
@@ -22,7 +22,7 @@ class TestCore(unittest.TestCase):
         mu = n/2
         sigma = mu/3
         rmin, rmax = mu/4, mu
-        c, r = lrgen.center_radius_generator(mu, sigma, rmin, rmax)
+        c, r = lrgen.center_radius_generator(mu, sigma, rmin, rmax, n)
         tester = (c > 0).all()
         assert tester
 
