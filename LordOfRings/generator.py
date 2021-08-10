@@ -5,6 +5,7 @@ This module manage the creation of random circle in sparse matrix using numpy pa
 import numpy as np
 import matplotlib.pyplot as plt
 import LordOfRings.inputHandling as ih
+import os
 
 def center_radius_generator(mu, sigma, rmin, rmax, n):
     """center_radius_generator generate three random numbers, two from
@@ -168,8 +169,8 @@ def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = Non
         for i in range(ndata):
             list_info = '    cx    cy    r    ncircle    \n'
             for j in range(ncircle):
-                c, r = gen.center_radius_generator(mu, sigma, rmin, rmax, n)
-                circle = np.logical_or(gen.rnd_circle_pruning(gen.circle_generator(n, c, r), threshold = threshold), circle)
+                c, r = center_radius_generator(mu, sigma, rmin, rmax, n)
+                circle = np.logical_or(rnd_circle_pruning(circle_generator(n, c, r), threshold = threshold), circle)
                 list_info += f'    {c[0]}    {c[1]}    {r}    {ncircle}    \n'
             np.savetxt(f'{ncircle}circle_{i+1}.txt', circle, fmt='%0.f' ,header=list_info)
             circle = np.zeros((n, n), dtype=int)
