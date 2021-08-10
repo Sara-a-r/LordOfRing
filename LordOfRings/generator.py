@@ -3,6 +3,7 @@ This module manage the creation of random circle in sparse matrix using numpy pa
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 import LordOfRings.inputHandling as ih
 
 def center_radius_generator(mu, sigma, rmin, rmax, n):
@@ -115,3 +116,77 @@ def rnd_circle_pruning(circle, threshold = 0.5):
     randvector[randvector <= threshold] = 0
     circle[circle!=0] = randvector
     return circle
+
+
+def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = None, threshold = 0.5):
+    """data_gen create set of data containing sparse matrixes of ones in txt
+    format. Data are created in a folder named 'data' in the current directory.
+
+    Parameters
+    ----------
+    n : int
+        The linear size of the grid.
+    ndata : int
+        The number of data set to generate.
+    ncircle : int
+        The number of circle in each sparse matrix.
+    mu : float, greater than or equal to zero, lower than the grid linear size
+        The mean for the normal distribution.
+    sigma : float, positive value
+        The standard deviation for the normal distribution.
+    rmin : float, greater than or equal to zero, lower than rmax
+        The minimum radius for the uniform extraction.
+    rmax : float, positive value, greater than rmin
+        The maximum radius for the uniform extraction.
+    threshold : float
+        Parameter that controll the extraction, i.e. lower values correspond to
+        higer number of ones in the returned matrix and vice versa.
+
+    Returns
+    -------
+    
+    """
+    if mu == None: mu = n/2
+    if sigma == None: sigma = mu/3
+    if rmin == None: rmin = mu/4
+    if rmax == None: rmax = mu
+    circle = np.zeros((n, n), dtype=int)
+
+    # get the working directory
+    work_dir = os.getcwd()
+    # define the data directory
+    data_dir = os.path.join(work_dir,"data")
+    #if the directory does not exist, you can create it
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
+
+    os.chdir(data_dir)
+    try:
+        for i in range(ndata):
+            list_info = '    cx    cy    r    ncircle    \n'
+            for j in range(ncircle):
+                c, r = gen.center_radius_generator(mu, sigma, rmin, rmax, n)
+                circle = np.logical_or(gen.rnd_circle_pruning(gen.circle_generator(n, c, r), threshold = threshold), circle)
+                list_info += f'    {c[0]}    {c[1]}    {r}    {ncircle}    \n'
+            np.savetxt(f'{ncircle}circle_{i+1}.txt', circle, fmt='%0.f' ,header=list_info)
+            circle = np.zeros((n, n), dtype=int)
+    except Exception as e: print(e)
+    os.chdir(work_dir)
+
+
+def data_show(filename):
+    """data_show show the sparse matrix contained in the file txt.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the txt file (including the extension).
+
+    Returns
+    -------
+
+    """
+    data = np.loadtxt('data/'+filename)
+    plt.figure(figsize=(7,7))
+    plt.imshow(data)
+    plt.show()
