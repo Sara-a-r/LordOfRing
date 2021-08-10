@@ -118,7 +118,7 @@ def rnd_circle_pruning(circle, threshold = 0.5):
     return circle
 
 
-def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = None, threshold = 0.5):
+def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = None, threshold = 0.5, seed = None):
     """data_gen create set of data containing sparse matrixes of ones in txt
     format. Data are created in a folder named 'data' in the current directory.
 
@@ -141,11 +141,14 @@ def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = Non
     threshold : float
         Parameter that controll the extraction, i.e. lower values correspond to
         higer number of ones in the returned matrix and vice versa.
+    seed : int, default = None
+        The seed for the random numbers extraction for reproducibility.
 
     Returns
     -------
     
     """
+    np.random.seed(seed)
     if mu == None: mu = n/2
     if sigma == None: sigma = mu/3
     if rmin == None: rmin = mu/4
