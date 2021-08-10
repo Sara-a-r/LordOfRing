@@ -1,6 +1,7 @@
 # Folder for personal tests (i.e. notebooks or python scripts)
 scratchEdo/
 scratchSara/
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
