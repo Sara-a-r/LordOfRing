@@ -175,7 +175,7 @@ def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = Non
                 c, r = center_radius_generator(mu, sigma, rmin, rmax, n)
                 circle = np.logical_or(rnd_circle_pruning(circle_generator(n, c, r), threshold = threshold), circle)
                 list_info += f'    {c[0]}    {c[1]}    {r}    {ncircle}    \n'
-            np.savetxt(f'{str(ncircle).zfill(zeroscirc)}circle_{str(i+1).zfill(zerosdata)}.txt', circle, fmt='%0.f' ,header=list_info)
+            np.savetxt(f'{str(ncircle).zfill(zeroscirc)}circle_{str(i).zfill(zerosdata)}.txt', circle, fmt='%0.f' ,header=list_info)
             circle = np.zeros((n, n), dtype=int)
     except Exception as e: print(e)
     os.chdir(work_dir)
