@@ -5,6 +5,31 @@ This module fit multiple circle in sparse matrix
 import numpy as np
 
 
+def get_coord(datafile):
+    """
+    get_coord gives the X, Y coordinates of ones from a txt file containing a 
+    sparse matrix of 0 and 1. 
+    The coordinates start from 1 instead of 0.
+
+    Parameters
+    ----------
+    datafile : .txt file [str]
+        The name of the datafile contained in the folder ./data/. You don't
+        need to pass './data/'.
+
+    Returns
+    -------
+    ( 1d numpy-array, 1d numpy-array ) [float, float]
+        The coordinates in a tuple  (X, Y).
+
+    """
+    circle = np.loadtxt('data/'+datafile)
+    coord = np.argwhere(circle!=0)
+    Xcoord = coord[:, 1] + 1
+    Ycoord = coord[:, 0] + 1
+    return Xcoord, Ycoord
+
+
 def init_triplets(list_events):
     """
     init_triplets gives three array: the first contains the index of border hits
