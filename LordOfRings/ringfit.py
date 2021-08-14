@@ -4,6 +4,7 @@ This module fit multiple circle in sparse matrix
 
 import numpy as np
 
+maxhits = 64 # closer multiple of two to 84
 
 def get_coord(datafile):
     """
@@ -50,7 +51,6 @@ def init_triplets(list_events):
 
     """
     nevents = len(list_events)  # number of events
-    maxhits = 84 # maximum num of hits for event
 
     # Triplet initialized as empty matrix
     #            (event1)

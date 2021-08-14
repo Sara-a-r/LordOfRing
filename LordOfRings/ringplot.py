@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import LordOfRings.ringfit as rf
 
+maxhits = 64 # closer multiple of two to 84
+
 def data_show(filename):
     """data_show show the sparse matrix contained in the file txt.
 
@@ -44,6 +46,7 @@ def triplet_plot(idx_event, list_events):
 
     """
 
+    nevents = len(list_events)
     triplet, X, Y = rf.init_triplets(list_events)
 
     # reshape arrays for keep code readable
