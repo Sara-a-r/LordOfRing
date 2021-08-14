@@ -7,7 +7,7 @@ import os
 
 def datasort():
     """datasort extracts data names from the folder data and sorts them using 
-    two criteria: firt the number m of circle in a single matrix (mcircle_),
+    two criteria: firt the number m of circle in a single matrix (mcircle),
     second the index n of the matrix in the dataset (n.txt).
 
     Returns
