@@ -54,7 +54,7 @@ def triplet_plot(idx_event, list_events):
     Ymat = Y.reshape((nevents,maxhits))
     tripletmat = triplet.reshape((nevents,12))
 
-    # extract the index of the coordinates of the event ii
+    # extract the index of the coordinates of the event idx_event
     coloridx = tripletmat[idx_event].astype(int)
 
     nonzeromask = Xmat[idx_event, :]!=0 # remove zeros from X, Y
@@ -71,7 +71,7 @@ def triplet_plot(idx_event, list_events):
     coord = np.stack((Xvec1, Yvec1), axis=1)
 
     # Load the matrix
-    circle = np.loadtxt('data/'+list_circle[ii])
+    circle = np.loadtxt('data/'+list_events[idx_event])
 
     # initialize color to 2 (the plot is an heat map)
     c = 2
