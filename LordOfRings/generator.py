@@ -58,9 +58,9 @@ def circle_generator(n, c, r):
     ----------
     n : int
         The linear size of the matrix
-    c : 1d numpy array [int]
+    c : 1d numpy array [float]
         The center's coordinates.
-    r : int
+    r : float
         The radius of the circle.
 
     Returns
@@ -194,6 +194,6 @@ def data_show(filename):
 
     """
     data = np.loadtxt('data/'+filename)
-    plt.figure(figsize=(7,7))
+    plt.figure(figsize=(6,6))
     plt.imshow(data)
     plt.show()
