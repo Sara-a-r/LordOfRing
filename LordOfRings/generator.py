@@ -180,6 +180,8 @@ def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = Non
     except Exception as e: print(e)
     os.chdir(work_dir)
 
+<<<<<<< HEAD
+=======
 
 def data_show(filename):
     """data_show show the sparse matrix contained in the file txt.
@@ -197,3 +199,4 @@ def data_show(filename):
     plt.figure(figsize=(6,6))
     plt.imshow(data)
     plt.show()
+>>>>>>> f9e2a52a0f9308a49cbcc39a9d0710da2e281e38
