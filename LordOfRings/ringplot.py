@@ -25,29 +25,27 @@ def data_show(filename):
     plt.show()
 
 
-
-def triplet_plot(idx_event, list_events):
+def triplet_plot(idx_event, dict_events):
     """
     triplet_plot shows in a heat map the rings in a event and in a different 
     color the triplets, i.e the border points.
     
     Parameters
     ----------
-    list_events : list of str
-        List of .txt files that contain the sparse matrix of each events. These
-        files are contained in the folder ./data/.
+    dict_events : dictionary
+        Dictionary whose keys are the name of .txt files and whose values are  
+        the x, y coordinates of the relative event in a list.
+        This format is the output of the function LordOfRing.ringfit.load_data.
 
     idx_event : int
         The index of the event in the list that we want to plot.
 
     Returns
     -------
-    
 
     """
-
-    nevents = len(list_events)
-    triplet, X, Y = rf.init_triplets(list_events)
+    nevents = len(dict_events)
+    triplet, X, Y = rf.init_triplets(dict_events)
 
     # reshape arrays for keep code readable
     Xmat = X.reshape((nevents,maxhits))
@@ -71,7 +69,7 @@ def triplet_plot(idx_event, list_events):
     coord = np.stack((Xvec1, Yvec1), axis=1)
 
     # Load the matrix
-    circle = np.loadtxt('data/'+list_events[idx_event])
+    circle = np.loadtxt('data/'+list(dict_events.keys())[idx_event])
 
     # initialize color to 2 (the plot is an heat map)
     c = 2
