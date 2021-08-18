@@ -87,7 +87,7 @@ def circle_generator(n, c, r):
     return circle
 
 
-def rnd_circle_pruning(circle, threshold = 0.5):
+def rnd_circle_pruning(circle, threshold = 0.3, maxhits = 32):
     """rnd_circle_pruning modifies the input sparse matrix randomly removing
     some ones that belongs to the ring. The random selection uses a uniform
     distribution.
@@ -99,6 +99,10 @@ def rnd_circle_pruning(circle, threshold = 0.5):
     threshold : float
         Parameter that controll the extraction, i.e. lower values correspond to
         higer number of ones in the returned matrix and vice versa.
+    maxhits : int
+        The maximum number of points after the second pruning. If a circle has 
+        more than maxhits points after the first pruning remove them randomly
+        until they reach maxhits.
 
     Returns
     -------
@@ -112,14 +116,24 @@ def rnd_circle_pruning(circle, threshold = 0.5):
         raise ValueError('The input circle must be a sparse matrix of ones.')
     ih.raise_value_error(threshold, min = 0, max = 1)
 
+    #first pruning
     randvector = np.random.rand( len(circle[circle!=0]) )
     randvector[randvector > threshold] = 1
     randvector[randvector <= threshold] = 0
     circle[circle!=0] = randvector
+    
+    #second pruning
+    ones_arr = circle[circle == 1]
+    len_ones = len(ones_arr)
+    idx_ones = np.arange(len_ones)
+    if len_ones >= 32 :
+        idx_to_zero = np.random.choice(idx_ones, size = len_ones - 32, replace = False, p = None)
+        ones_arr[idx_to_zero] = 0
+        circle[circle == 1] = ones_arr
     return circle
 
 
-def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = None, threshold = 0.5, seed = None):
+def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = None, threshold = 0.3, seed = None):
     """data_gen create set of data containing sparse matrixes of ones in txt
     format. Data are created in a folder named 'data' in the current directory.
 
