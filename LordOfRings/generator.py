@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import LordOfRings.inputHandling as ih
 import os
+import sys
 
 def center_radius_generator(mu, sigma, rmin, rmax, n):
     """center_radius_generator generate three random numbers, two from
@@ -34,15 +35,15 @@ def center_radius_generator(mu, sigma, rmin, rmax, n):
 
     """
     # Testing input values
-    ih.raise_value_error(mu, min = 0, max = n)
-    ih.raise_value_error(sigma, min = 0)
-    ih.raise_value_error(rmax, min = rmin)
-    ih.raise_value_error(rmin, max = rmax)
-    ih.raise_value_error(n, min = 0)
+    ih.raise_value_error('mu', mu, min = 0, max = n)
+    ih.raise_value_error('sigma', sigma, min = 0)
+    ih.raise_value_error('rmax', rmax, min = rmin)
+    ih.raise_value_error('rmin', rmin, max = rmax)
+    ih.raise_value_error('n', n, min = 0)
 
     n_rand = np.random.normal(loc = mu, scale = sigma, size = 2).astype(int)
     # If obtain negative values or greater then the grid linear size repeat the extraction
-    while (n_rand < 0).any() or (n_rand > n).any():
+    while (n_rand < 0).any() or (n_rand >= n).any():
         n_rand = np.random.normal(loc = mu, scale = sigma, size = 2).astype(int)
     c = n_rand
     r = np.random.randint(rmin, rmax)
@@ -71,23 +72,26 @@ def circle_generator(n, c, r):
     """
 
     # Testing input values
-    ih.raise_value_error(n, min = 0)
-    ih.raise_value_error(r, min = 0)
+    ih.raise_value_error('n', n, min = 0)
+    ih.raise_value_error('r', r, min = 0)
     for ci in c:
-        ih.raise_value_error(ci, min = 0, max = n)
+        if ci < 0:
+            raise ValueError(f'x should be greater than or equal to {0}. The given value was {ci}')
+        if ci >= n:
+            raise ValueError(f'y should be lower than or equal to {n}. The given value was {ci}')
 
     v = np.arange(1, n+1)
-    X, Y = np.meshgrid(v, v)
+    Y, X = np.meshgrid(v, v)
     deltaX = np.abs(X-c[0])
     deltaY = np.abs(Y-c[1])
     distance = np.sqrt(deltaX**2 + deltaY**2)
     circle = np.empty(distance.shape)
-    circle[np.abs(distance - r) > 0.5 ] = 0
-    circle[np.abs(distance - r) <= 0.5 ] = 1
+    circle[np.abs(distance - r) > 0.3 ] = 0
+    circle[np.abs(distance - r) <= 0.3 ] = 1
     return circle
 
 
-def rnd_circle_pruning(circle, threshold = 0.3, maxhits = 32):
+def rnd_circle_pruning(circle, threshold = 0.3, maxhits = 64):
     """rnd_circle_pruning modifies the input sparse matrix randomly removing
     some ones that belongs to the ring. The random selection uses a uniform
     distribution.
@@ -114,7 +118,7 @@ def rnd_circle_pruning(circle, threshold = 0.3, maxhits = 32):
     # Testing input values
     if np.logical_and(circle != 0, circle != 1).any():
         raise ValueError('The input circle must be a sparse matrix of ones.')
-    ih.raise_value_error(threshold, min = 0, max = 1)
+    ih.raise_value_error('threshold', threshold, min = 0, max = 1)
 
     #first pruning
     randvector = np.random.rand( len(circle[circle!=0]) )
@@ -126,8 +130,8 @@ def rnd_circle_pruning(circle, threshold = 0.3, maxhits = 32):
     ones_arr = circle[circle == 1]
     len_ones = len(ones_arr)
     idx_ones = np.arange(len_ones)
-    if len_ones >= 32 :
-        idx_to_zero = np.random.choice(idx_ones, size = len_ones - 32, replace = False, p = None)
+    if len_ones >= maxhits :
+        idx_to_zero = np.random.choice(idx_ones, size = len_ones - maxhits, replace = False, p = None)
         ones_arr[idx_to_zero] = 0
         circle[circle == 1] = ones_arr
     return circle
@@ -165,7 +169,7 @@ def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = Non
     """
     np.random.seed(seed)
     if mu == None: mu = n/2
-    if sigma == None: sigma = mu/3
+    if sigma == None: sigma = mu/2
     if rmin == None: rmin = mu/4
     if rmax == None: rmax = mu
     circle = np.zeros((n, n), dtype=int)
@@ -182,14 +186,19 @@ def data_gen(n, ndata, ncircle, mu = None, sigma = None, rmin = None, rmax = Non
         os.mkdir(data_dir)
 
     os.chdir(data_dir)
+    mu0 = mu
     try:
         for i in range(ndata):
             list_info = '    cx    cy    r    ncircle    \n'
             for j in range(ncircle):
+                mu = mu0 + (-1)**(j+i)*n/6
                 c, r = center_radius_generator(mu, sigma, rmin, rmax, n)
-                circle = np.logical_or(rnd_circle_pruning(circle_generator(n, c, r), threshold = threshold), circle)
+                circle = np.logical_or(circle_generator(n, c, r), circle)
                 list_info += f'    {c[0]}    {c[1]}    {r}    {ncircle}    \n'
+            circle = rnd_circle_pruning(circle, threshold = threshold)
             np.savetxt(f'{str(ncircle).zfill(zeroscirc)}circle_{str(i).zfill(zerosdata)}.txt', circle, fmt='%0.f' ,header=list_info)
             circle = np.zeros((n, n), dtype=int)
-    except Exception as e: print(e)
+    except Exception as e:
+        exc_type, exc_obj, exc_tb = sys.exc_info() 
+        print(exc_tb.tb_lineno, ':', e)
     os.chdir(work_dir)
