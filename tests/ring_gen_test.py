@@ -36,8 +36,8 @@ class TestCore(unittest.TestCase):
         circle = lrgen.circle_generator(n, c, r)
         coord = np.argwhere(circle!=0)
         # The first element (0) is for the row (y) the second element (1) is for the row (x)
-        Xcoord = coord[:, 1] + 1
-        Ycoord = coord[:, 0] + 1
+        Xcoord = coord[:, 0] + 1
+        Ycoord = coord[:, 1] + 1
         tester = np.sqrt((Xcoord - c[0])**2 + (Ycoord - c[1])**2) - r
         assert (tester < 0.5).all()
 
