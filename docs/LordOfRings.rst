@@ -20,3 +20,11 @@ Module LordOfRings.ringplot
    :members:
    :undoc-members:
    :show-inheritance:
+
+Module LordOfRings.ringfit
+-----------------------------
+.. automodule:: LordOfRings.ringplot
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
