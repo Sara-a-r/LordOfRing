@@ -23,7 +23,7 @@ Module LordOfRings.ringplot
 
 Module LordOfRings.ringfit
 -----------------------------
-.. automodule:: LordOfRings.ringplot
+.. automodule:: LordOfRings.ringfit
    :members:
    :undoc-members:
    :show-inheritance:
