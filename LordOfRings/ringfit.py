@@ -41,7 +41,7 @@ def init_triplets(dict_events, maxhits = 64, t=10):
     dict_events : dictionary
         Dictionary whose keys are the name of .txt files and whose values are  
         the x, y coordinates of the relative event in a list.
-         This format is the output of the function LordOfRing.ringfit.load_data.
+        This format is the output of the function LordOfRing.ringfit.load_data.
     
     maxhits : int
         Maximum number of points per event (i.e. the maximum number of ones in
