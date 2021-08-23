@@ -4,11 +4,15 @@ This module fit multiple circle in sparse matrix
 
 import numpy as np
 import os
-import pycuda.driver as cuda
-import pycuda.autoinit
-from pycuda import gpuarray
-from pycuda.compiler import SourceModule
-from pycuda.tools import DeviceData
+try:
+    import pycuda.driver as cuda
+    import pycuda.autoinit
+    from pycuda import gpuarray
+    from pycuda.compiler import SourceModule
+    from pycuda.tools import DeviceData
+    GPU = True
+except:
+    GPU = False
 
 def load_data(list_events):
     """
@@ -209,93 +213,98 @@ def multi_ring_fit(X, Y, triplet, MAXHITS=64):
         out.writelines(lines)
         out.close()
 
-    #load and compile Cuda/C file 
-    cudaCode = open(file_name,"r")
-    myCUDACode = cudaCode.read()
-    myCode = SourceModule(myCUDACode, no_extern_c=True)
-    #import kernel in python
-    MultiRing = myCode.get_function("multiring")
+    if GPU:
+        #load and compile Cuda/C file 
+        cudaCode = open(file_name,"r")
+        myCUDACode = cudaCode.read()
+        myCode = SourceModule(myCUDACode, no_extern_c=True)
+        #import kernel in python
+        MultiRing = myCode.get_function("multiring")
 
-    nevents = int(len(X)/MAXHITS) # Deduce the number of events thanks to X and MAXHITS
-    typeofdata = np.float32 # Define the data type for the allocations
-    # Global memory allocation (empty variables)
-    g_xca = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata)
-    g_yca = gpuarray.zeros( 4*MAXHITS*nevents , typeofdata)
-    g_xm  = gpuarray.zeros( 4*nevents, typeofdata)
-    g_ym  = gpuarray.zeros( 4*nevents, typeofdata)
-    g_u   = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-    g_v   = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-    g_z   = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-    g_u2  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-    g_v2  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-    g_z2  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-    g_uz  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-    g_vz  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-    g_uv  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-    g_zav = gpuarray.zeros( 4*nevents, typeofdata )
-    g_z2av= gpuarray.zeros( 4*nevents, typeofdata )
-    g_u2av= gpuarray.zeros( 4*nevents, typeofdata )
-    g_v2av= gpuarray.zeros( 4*nevents, typeofdata )
-    g_uvav= gpuarray.zeros( 4*nevents, typeofdata )
-    g_uzav= gpuarray.zeros( 4*nevents, typeofdata )
-    g_vzav= gpuarray.zeros( 4*nevents, typeofdata )
-    g_xc  = gpuarray.zeros( 4*nevents, typeofdata )
-    g_yc  = gpuarray.zeros( 4*nevents, typeofdata )
-    g_r   = gpuarray.zeros( 4*nevents, typeofdata )
+        nevents = int(len(X)/MAXHITS) # Deduce the number of events thanks to X and MAXHITS
+        typeofdata = np.float32 # Define the data type for the allocations
+        # Global memory allocation (empty variables)
+        g_xca = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata)
+        g_yca = gpuarray.zeros( 4*MAXHITS*nevents , typeofdata)
+        g_xm  = gpuarray.zeros( 4*nevents, typeofdata)
+        g_ym  = gpuarray.zeros( 4*nevents, typeofdata)
+        g_u   = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
+        g_v   = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
+        g_z   = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
+        g_u2  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
+        g_v2  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
+        g_z2  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
+        g_uz  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
+        g_vz  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
+        g_uv  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
+        g_zav = gpuarray.zeros( 4*nevents, typeofdata )
+        g_z2av= gpuarray.zeros( 4*nevents, typeofdata )
+        g_u2av= gpuarray.zeros( 4*nevents, typeofdata )
+        g_v2av= gpuarray.zeros( 4*nevents, typeofdata )
+        g_uvav= gpuarray.zeros( 4*nevents, typeofdata )
+        g_uzav= gpuarray.zeros( 4*nevents, typeofdata )
+        g_vzav= gpuarray.zeros( 4*nevents, typeofdata )
+        g_xc  = gpuarray.zeros( 4*nevents, typeofdata )
+        g_yc  = gpuarray.zeros( 4*nevents, typeofdata )
+        g_r   = gpuarray.zeros( 4*nevents, typeofdata )
 
-    # Load the data of the events
-    g_x = gpuarray.to_gpu(X.astype(typeofdata))
-    g_y = gpuarray.to_gpu(Y.astype(typeofdata))
-    g_triplet = gpuarray.to_gpu(triplet.astype(np.int32))
+        # Load the data of the events
+        g_x = gpuarray.to_gpu(X.astype(typeofdata))
+        g_y = gpuarray.to_gpu(Y.astype(typeofdata))
+        g_triplet = gpuarray.to_gpu(triplet.astype(np.int32))
 
-    #define geometry of GPU
-    tripletsPerEvents = 4
-    nThreadsPerBlock = MAXHITS 
-    nBlockPerGrid = nevents * tripletsPerEvents
-    nGridsPerBlock = 1
+        #define geometry of GPU
+        tripletsPerEvents = 4
+        nThreadsPerBlock = MAXHITS 
+        nBlockPerGrid = nevents * tripletsPerEvents
+        nGridsPerBlock = 1
 
-    # Call the kerrnel 
-    MultiRing(g_x, g_y, g_triplet, 
-              g_xca, g_yca, 
-              g_xm, g_ym,
-              g_u, g_v, g_z, 
-              g_u2, g_v2, g_z2,
-              g_uz, g_vz, g_uv, 
-              g_zav, g_z2av, g_u2av, g_v2av,
-              g_uvav, g_uzav, g_vzav, np.int32(nevents), 
-              g_xc, g_yc, g_r, 
-              block=(nThreadsPerBlock, 1, 1),# this control the threadIdx.x (.y and .z)
-              grid=(nBlockPerGrid, 1, 1)# this control blockIdx.x ...
-              )
-    # Getting results
-    r, xc, yc = g_r.get(), g_xc.get(), g_yc.get()
-    # Reshape the result divided by events
-    r = np.reshape(r, (nevents, 4))
-    xc = np.reshape(xc, (nevents, 4))
-    yc = np.reshape(yc, (nevents, 4))
+        # Call the kerrnel 
+        MultiRing(g_x, g_y, g_triplet, 
+                  g_xca, g_yca, 
+                  g_xm, g_ym,
+                  g_u, g_v, g_z, 
+                  g_u2, g_v2, g_z2,
+                  g_uz, g_vz, g_uv, 
+                  g_zav, g_z2av, g_u2av, g_v2av,
+                  g_uvav, g_uzav, g_vzav, np.int32(nevents), 
+                  g_xc, g_yc, g_r, 
+                  block=(nThreadsPerBlock, 1, 1),# this control the threadIdx.x (.y and .z)
+                  grid=(nBlockPerGrid, 1, 1)# this control blockIdx.x ...
+                  )
+        # Getting results
+        r, xc, yc = g_r.get(), g_xc.get(), g_yc.get()
+        # Reshape the result divided by events
+        r = np.reshape(r, (nevents, 4))
+        xc = np.reshape(xc, (nevents, 4))
+        yc = np.reshape(yc, (nevents, 4))
 
-    # Free the memory
-    g_x.gpudata.free()
-    g_y.gpudata.free()
-    g_xm.gpudata.free()
-    g_ym.gpudata.free()
-    g_u.gpudata.free()
-    g_v.gpudata.free()
-    g_z.gpudata.free()
-    g_u2.gpudata.free()
-    g_v2.gpudata.free()
-    g_z2.gpudata.free()
-    g_uz.gpudata.free()
-    g_vz.gpudata.free()
-    g_uv.gpudata.free()
-    g_zav.gpudata.free()
-    g_z2av.gpudata.free()
-    g_u2av.gpudata.free()
-    g_v2av.gpudata.free()
-    g_xc.gpudata.free()
-    g_yc.gpudata.free()
-    g_r.gpudata.free()
+        # Free the memory
+        g_x.gpudata.free()
+        g_y.gpudata.free()
+        g_xm.gpudata.free()
+        g_ym.gpudata.free()
+        g_u.gpudata.free()
+        g_v.gpudata.free()
+        g_z.gpudata.free()
+        g_u2.gpudata.free()
+        g_v2.gpudata.free()
+        g_z2.gpudata.free()
+        g_uz.gpudata.free()
+        g_vz.gpudata.free()
+        g_uv.gpudata.free()
+        g_zav.gpudata.free()
+        g_z2av.gpudata.free()
+        g_u2av.gpudata.free()
+        g_v2av.gpudata.free()
+        g_xc.gpudata.free()
+        g_yc.gpudata.free()
+        g_r.gpudata.free()
 
+    else:
+        r = np.zeros((nevents, 4))
+        xc = np.zeros((nevents, 4))
+        yc = np.zeros((nevents, 4))
     # Remove the file .cu generated
     os.remove(file_name)
 
