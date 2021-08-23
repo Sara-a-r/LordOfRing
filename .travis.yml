@@ -2,7 +2,7 @@ language: python
 python:
     "3.8"
 #Command
-install:
-    pip3 install -r requirements.txt
+install: python3 pyinstall.py
+#    pip3 install -r requirements.txt
 #command to run tests
 script: pytest
