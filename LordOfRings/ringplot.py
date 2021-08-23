@@ -5,22 +5,29 @@ This module manage the creation of plot.
 import numpy as np
 from numpy import ma
 import matplotlib.pyplot as plt
+from matplotlib import ticker
 import LordOfRings.ringfit as rf
+import math
 
 
-def data_show(filename):
-    """data_show show the sparse matrix contained in the file txt.
+def data_show(filename, ax = None):
+    """
+    data_show show the sparse matrix contained in the file txt.
 
     Parameters
     ----------
     filename : str
         The name of the txt file (including the extension).
-
+        
+    ax : matplotlib axes (default None)
+        The axes in wich plot the sparse matrix, if None define a new ax.
+    
     Returns
     -------
 
     """
-    fig, ax = plt.subplots()
+    if ax == None:
+        fig, ax = plt.subplots()
     data = np.loadtxt('data/'+filename)
     ax.imshow(data.T, origin='lower')
     return ax
@@ -67,8 +74,10 @@ def ptolemy_contourf(idx_event, dict_events, maxhits = 64, t=1, annotate = False
 
     """
     nevents = len(dict_events)
+    font = {'size'   : 12} # stack
+    plt.rc('font', **font) # overflow
     triplet, X, Y = rf.init_triplets(dict_events, t = t)
-    fig, axs = plt.subplots(1,4,figsize = (19, 5))
+    fig, axs = plt.subplots(1,4,figsize = (21, 5), sharex = True)
 
     for idx_trip, ax in zip(range(4), axs.flat):
 
@@ -101,8 +110,7 @@ def ptolemy_contourf(idx_event, dict_events, maxhits = 64, t=1, annotate = False
             ypto.append(pto)
         
         ypto = np.array(ypto)[maxhits*idx_event : maxhits*(idx_event+1) ]
-        dd = np.array(dd)[maxhits*idx_event : maxhits*(idx_event+1) ]
-     
+
         Xinterval = X[maxhits*idx_event : maxhits*(idx_event+1) ]
           
         Xmatca = X[maxhits*idx_event : maxhits*(idx_event+1)][ypto<thr] 
@@ -165,10 +173,10 @@ def ptolemy_contourf(idx_event, dict_events, maxhits = 64, t=1, annotate = False
         # show result
         ar = np.arange(128)
         xmesh, ymesh = np.meshgrid(ar, ar)
-        P, _ = pypto(xmesh, ymesh, real_trip)
+        P = pypto(xmesh, ymesh, real_trip)
         P = ma.masked_where(P <= 0, P)
         level = np.logspace(-7, 4, 12)
-        cont = ax.contourf(ar, ar, P, level, locator=plt.ticker.LogLocator(), 
+        cont = ax.contourf(ar, ar, P, level, locator=ticker.LogLocator(), 
                            cmap=plt.get_cmap('Blues'), alpha=0.8, antialiased=True, 
                            zorder=1)
 
@@ -176,7 +184,72 @@ def ptolemy_contourf(idx_event, dict_events, maxhits = 64, t=1, annotate = False
         am = ma.masked_where(alphafilter==0, alphafilter)
 
         ax.imshow(am.T, origin='lower', zorder=2, cmap=plt.cm.get_cmap('Reds_r') , interpolation='none')
-        ax.set_title(f'Catch {np.sum(ypto<dd)} points')
-    plt.tight_layout()
+        ax.set_title(f'Catch {np.sum(ypto<thr)} points')
+        
+    fig.subplots_adjust(right=0.9)
+    cbar_ax = fig.add_axes([0.91, 0.2, 0.01, 0.6])
+    fig.colorbar(cont, cax=cbar_ax)
     plt.suptitle(f'evt {idx_event}')
     plt.show()
+    
+    
+
+def show_circle_fit(list_events, rr, xc, yc, ncircline):
+    """
+    show_circle_fit makes a plot of sparse matrices contained in list_events. In
+    each plot is also shown the fit results corresponding to that event.
+    The subplots layout is optimized by the function.
+
+    Parameters
+    ----------
+    list_events : list of str
+        List of .txt files that contain the sparse matrix of each events. These
+        files are contained in the folder ./data/.
+
+    rr : 2d numpy-array [float]
+        The radii predicted by the multiring alghoritm in the format described
+        in the return of the function 'LordOfRings.ringfit.multi_ring_fit'.
+
+    xc : 2d numpy-array [float]
+        The x coordinates of the center predicted by the multiring alghoritm in 
+        the format described in the return of the function 
+        'LordOfRings.ringfit.multi_ring_fit'.
+
+    yc : 2d numpy-array [float]
+        The y coordinates of the center predicted by the multiring alghoritm in 
+        the format described in the return of the function 
+        'LordOfRings.ringfit.multi_ring_fit'.
+
+    ncircleline : int
+        It correspondes to the number of sparse matrix in each row. This number 
+        has to be lower or equal to the number of events.
+
+    Returns
+    -------
+
+    """
+    # If there are more event than ncircle
+    if len(list_events)>ncircline:
+        # if I need to plot 50 event in columns of 5 event I need 10 rows: 50/5,
+        # if the division doesn't give an integer we need to round up (ceil) it, at the last iteration
+        # we break the line of plot with empty plot.
+        for ii, s in enumerate(range(math.ceil(len(list_events)/ncircline))): # division with ceil for divide rows
+            k = ncircline*ii # parameter that jump of ncircle 
+            fig, axs = plt.subplots(1, ncircline, figsize = (23, 8))
+            for i, ax in zip(range(ncircline), axs.flat): # start plot the circle 
+                if k + i >= len(list_events): # if we are in the last (incomplete) line
+                    fig.delaxes(ax) # remove the ax
+                else:
+                    data_show(list_events[k + i], ax = ax) # plot circle points from sparse matrix
+                    for j in range(4): # Plot the four fit curve from the Taubin algoritm
+                        ax.add_artist( plt.Circle( ( xc[k + i, j]-1, yc[k + i, j]-1 ), rr[k + i, j], fill=False, color = 'y', alpha=0.5) )
+                    ax.set_title(f'{list_events[k+i]}') # setting title
+            plt.show()
+    else: # else plot all in one line
+        fig, axs = plt.subplots(1, len(list_events), figsize = (int(20*len(list_events)/ncircline), 5))
+        for i, ax in zip(range(len(list_events)), axs.flat):
+            data_show(list_events[i], ax = ax)
+            for j in range(len(rr)):
+                ax.add_artist( plt.Circle( ( xc[i, j]-1, yc[i, j]-1 ), rr[i, j], fill=False, color = 'y', alpha=0.5) )
+            ax.set_title(f'{list_events[i]}')
+        plt.show()
