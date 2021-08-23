@@ -16,7 +16,7 @@ def load_data(list_events):
     -------
     dictionary
         Dictionary with keys the name of .txt files and with values given by the
-         x/y coordinates of the relative event.
+        x,y coordinates of the relative event.
 
     """
     dict_data = {}
