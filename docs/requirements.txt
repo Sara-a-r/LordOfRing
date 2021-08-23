@@ -1,6 +1,6 @@
 # documentation theme
 numpydoc
-sphinx-rtd-theme
+renku-sphinx-theme
 
 # package for the repo
 numpy
