@@ -1,30 +1,13 @@
-Module LordOfRings.generators
------------------------------
-.. automodule:: LordOfRings.generator
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Module LordOfRings
+==================
 
+This is the core module of the project.
 
-Module LordOfRings.datasort
------------------------------
-.. automodule:: LordOfRings.datasort
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
 
-
-Module LordOfRings.ringplot
------------------------------
-.. automodule:: LordOfRings.ringplot
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module LordOfRings.ringfit
------------------------------
-.. automodule:: LordOfRings.ringfit
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
+   generators
+   datasort
+   ringplot
+   ringfit

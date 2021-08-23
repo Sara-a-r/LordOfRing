@@ -1,4 +1,11 @@
+# documentation theme
 numpydoc
 sphinx-rtd-theme
+
+# package for the repo
 numpy
 matplotlib
+
+# Notebook in the docs
+nbsphinx
+pandoc
