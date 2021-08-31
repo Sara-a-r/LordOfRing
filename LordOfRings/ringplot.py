@@ -6,7 +6,9 @@ import numpy as np
 from numpy import ma
 import matplotlib.pyplot as plt
 from matplotlib import ticker
+import matplotlib.patches as mpatches
 import LordOfRings.ringfit as rf
+import LordOfRings.core as core
 import math
 
 
@@ -24,21 +26,23 @@ def data_show(filename, ax = None):
     
     Returns
     -------
-
+    matplotlib axes
+        The axes in wich plot the sparse matrix, if None returne a new ax.
+    
     """
     if ax == None:
         fig, ax = plt.subplots()
     data = np.loadtxt('data/'+filename)
-    ax.imshow(data.T, origin='lower')
+    circ = ax.imshow(data.T, origin='lower', cmap = 'Blues_r')
     return ax
 
 
-def ptolemy_contourf(idx_event, dict_events, maxhits = 64, t=1, annotate = False, thr = 0.2):
+def ptolemy_contourf(idx_event, dict_events, maxhits = 64, t=1, annotate = False, thr = 0.2, GPU = False):
     """
     ptolemy_contourf makes 4 contourf plot (one for each triplet) having as z 
     the value p associated to the Ptolemy theorem : 
     p = AB * BC + AD * CD - AC * BD. Triplets values are choosen using the
-    function 'LordOfRings.ringfit.init_triplet'.
+    function 'LordOfRings.core.init_triplet'.
     The function plots also the hits of the sparse matrix highlighting the 
     triplet's points.
     
@@ -68,128 +72,107 @@ def ptolemy_contourf(idx_event, dict_events, maxhits = 64, t=1, annotate = False
     thr : float
         Threshold on the p value: if a hit has p < thr it is highlighted in the 
         plot.
+    
+    GPU : boolean
+        If you want to extract triplet from GPU set this value on True, 
+        else choose False.
 
     Returns
     -------
 
     """
-    nevents = len(dict_events)
-    font = {'size'   : 12} # stack
-    plt.rc('font', **font) # overflow
-    triplet, X, Y = rf.init_triplets(dict_events, t = t)
+    
+    font = {'size'   : 12} # resize all the fonts
+    plt.rc('font', **font) #
     fig, axs = plt.subplots(1,4,figsize = (21, 5), sharex = True)
 
-    for idx_trip, ax in zip(range(4), axs.flat):
-
-        def pypto(x, y, trip):
-            def d(xa, ya, xb, yb):
-                dist = np.sqrt( ( xa - xb )**2 + ( ya - yb )**2)
-                return dist
-            A = [trip[0], trip[1]]
-            B = [trip[2], trip[3]]
-            C = [trip[4], trip[5]]
-            D = [x, y]
-            return d(*A, *B) * d(*C, *D) + d(*A, *D) * d(*C, *B) - d(*A, *C) * d(*B, *D)
-       
-        xx = np.array([X[i] for i in triplet])
-        yy = np.array([Y[i] for i in triplet])
-        real_trip = []
-        idx_tripl1 = 4*3*idx_event + idx_trip*3
-        idx_tripl2 = 4*3*idx_event + (idx_trip+1)*3
-     
-        for x, y in zip(xx[idx_tripl1:idx_tripl2], yy[idx_tripl1:idx_tripl2]):
-            real_trip.append(x)
-            real_trip.append(y)
-     
-     
-        real_trip = np.array(real_trip)
-     
-        ypto = []
-        for i, (x, y) in enumerate(zip(X, Y)):
-            pto = pypto(x, y, real_trip)
-            ypto.append(pto)
+    nevents = len(dict_events) # the len of the dictionary is equal to the number of events
+    # initialize the triplets and the joined array for all the events in dict_events
+    triplet, X, Y = core.init_triplets(dict_events, t = t, maxhits=maxhits, GPU = GPU)
+    
+    listval = [] # this is used for generate the legend of an imshow (plt.legend wouldn't work)
+    for idx_trip, ax in zip(range(4), axs): # we make a plot for every triplet
+        Xca, Yca, my_triplet, trip_coord = core.ptolemy_candidates(triplet, X, Y, idx_event, idx_trip, thr, nevents, maxhits)
         
-        ypto = np.array(ypto)[maxhits*idx_event : maxhits*(idx_event+1) ]
-
         Xinterval = X[maxhits*idx_event : maxhits*(idx_event+1) ]
-          
-        Xmatca = X[maxhits*idx_event : maxhits*(idx_event+1)][ypto<thr] 
-        Ymatca = Y[maxhits*idx_event : maxhits*(idx_event+1)][ypto<thr] 
-     
-        # reshape arrays for keep code readable
-        tripletmat = triplet.reshape((nevents,12))
-     
-        Xmat = X.reshape((nevents, maxhits))
-        Ymat = Y.reshape((nevents, maxhits))
-     
-     
-        # extract the index of the coordinates of the event idx_event
-        coloridx = tripletmat[idx_event].astype(int) - idx_event*maxhits
-     
-        coloridx = coloridx[3*idx_trip:3*(idx_trip+1)]
-     
-     
-        nonzeromask = Xmat[idx_event, :]!=0 # remove zeros from X, Y
-        nonzeromaskca = Xmatca!=0 # remove zeros from X, Y
-     
-     
-        # extract coordinates from X, Y
-        Xvec1 = Xmat[idx_event, :][nonzeromask].astype(int)
-        Yvec1 = Ymat[idx_event, :][nonzeromask].astype(int)
-     
-        Xvec1ca = Xmatca[nonzeromaskca].astype(int)
-        Yvec1ca = Ymatca[nonzeromaskca].astype(int)
-     
-        # Go back to coordinates from 0 to max-1
-        Xvec1 = Xvec1 - 1
-        Yvec1 = Yvec1 - 1
-     
-        Xvec1ca = Xvec1ca - 1
-        Yvec1ca = Yvec1ca - 1    
+        Yinterval = Y[maxhits*idx_event : maxhits*(idx_event+1) ] 
+        
+        nonzeromask = Xinterval!=0 # remove zeros from X, Y
+        nonzeromaskca = Xca!=0 # remove zeros from Xca, Yca
+        # apply the masks
+        Xinterval = Xinterval[nonzeromask].astype(int)
+        Yinterval = Yinterval[nonzeromask].astype(int)
+        Xca = Xca[nonzeromaskca].astype(int)
+        Yca = Yca[nonzeromaskca].astype(int)
+        
+        # The coordinates start from 1 for ours choise: we need to make them come back (-1) in order to 
+        # compare to the point of the original sparse matrix.
+        Xinterval -= 1
+        Yinterval -= 1
+        Xca -= 1
+        Yca -= 1    
      
         # Stack coordinates in array of two cols
-        coord = np.stack((Xvec1, Yvec1), axis=1)
-        coordca = np.stack((Xvec1ca, Yvec1ca), axis=1)
-     
-     
+        coord = np.stack((Xinterval, Yinterval), axis=1)
+        coordca = np.stack((Xca, Yca), axis=1)
+
         # Load the matrix
         circle = np.loadtxt('data/'+list(dict_events.keys())[idx_event])
      
+        # one letter for each point of the triplet (usefull for checking the cyclicity)
         letters = ['A', 'B', 'C']
-        # initialize color to 2 (the plot is an heat map)
+        # we put to 2 the point that are recognized by ptolemy in the matrix
         for x, y in coordca:
             circle[x, y] = 2
-        
-        c = 2
-        for n, (i, l) in enumerate(zip(coloridx, letters)):
-            # if n is multiple of three change color
-            if n%3 == 0:
-                c+=1
-            # change the values of circle
-            circle[coord[i, 0], coord[i, 1]] = c
-            if annotate:
-                ax.annotate(l, (coord[i, 0] + 0.5, coord[i, 1] + 0.5), color='yellow', fontsize=18)
-        j = idx_trip + 4*idx_event
-        # show result
-        ar = np.arange(128)
-        xmesh, ymesh = np.meshgrid(ar, ar)
-        P = pypto(xmesh, ymesh, real_trip)
-        P = ma.masked_where(P <= 0, P)
-        level = np.logspace(-7, 4, 12)
-        cont = ax.contourf(ar, ar, P, level, locator=ticker.LogLocator(), 
+            
+        # we put to 3 the point that belong to the triplet
+        for (i, l) in zip(my_triplet, letters):
+            circle[coord[i, 0], coord[i, 1]] = 3
+            if annotate: # we add lecters over the triplet points
+                ax.annotate(l, (coord[i, 0] + 0.5, coord[i, 1] + 0.5), color='red', fontsize=18)
+
+        # plot the conturf
+        ar = np.arange(len(circle)) # inizialize a vector of lenght equal to the lateral size of the circle matrix
+        xmesh, ymesh = np.meshgrid(ar, ar) # create a grid with that vector describing all the possible coordinate 
+        P = core.pypto(xmesh, ymesh, trip_coord) # evaluate the ptolemy value for all the points in the 'Ptolemy matrix'
+        P = ma.masked_where(P <= 0, P) # mask the ptolemy matrix where is lower than zero (for create a logaritmic conturf color scale)
+        level = np.logspace(-7, 4, 12) # scale level for logaritmic heatmap 
+        cont = ax.contourf(ar, ar, P, level, # level of colormap 
+                           locator=ticker.LogLocator(), # for logaritmic colormap 
                            cmap=plt.get_cmap('Blues'), alpha=0.8, antialiased=True, 
-                           zorder=1)
+                           zorder=1) # zorder=1 mean that this plot is under the plots with zorder = 2
 
+        # copy of original matrix for avoid unwanted modificaitons
         alphafilter = np.copy(circle)
+        # create a mask where alphafilter is equal to 0 (the value masked will bee consider with transparent color by imshow!)
         am = ma.masked_where(alphafilter==0, alphafilter)
-
-        ax.imshow(am.T, origin='lower', zorder=2, cmap=plt.cm.get_cmap('Reds_r') , interpolation='none')
-        ax.set_title(f'Catch {np.sum(ypto<thr)} points')
-        
+        # plot the masked array 
+        circ_plot = ax.imshow(am.T, origin='lower', zorder=2, cmap=plt.cm.get_cmap('Reds_r') , interpolation='none')
+        ax.set_title(f'Catch {len(Xca[Xca!=0])} points')
+        circ_plot.set_clim(1, 4)
+        # get the colors of the values, according to the 
+        # colormap used by imshow
+    # STUFF FOR LEGEND IN IMSHOW... # stack overflow....
+        values = np.unique(circle.ravel())[1:]
+        for value in values:
+            listval.append(value) 
+    listval = np.unique(np.array(listval))
+    colors = [ circ_plot.cmap(circ_plot.norm(value)) for value in listval]
+    
+    # create a patch (proxy artist) for every color 
+    textlabel = {'1':'Not catched by Ptolemy', '2':'Catched by Ptolemy', '3':'Triplet point'}
+    patches = [ mpatches.Patch(color=colors[i], label="{tt}".format(tt=textlabel[str(num)]) ) for i, num in enumerate(listval.astype(int))]
+    # put those patched as legend-handles into the legend
+    axs[0].legend(handles=patches, loc='upper left', bbox_to_anchor=(0., 1.2), ncol=len(listval), fontsize=10)
+    
     fig.subplots_adjust(right=0.9)
     cbar_ax = fig.add_axes([0.91, 0.2, 0.01, 0.6])
     fig.colorbar(cont, cax=cbar_ax)
-    plt.suptitle(f'evt {idx_event}')
+    # dict_events.key() extract the 'keys' (in our case the name of the files of the events in dict_events),
+    # with list() we turn that names into a list, in the end we use the index 'idx_event' in order to extract the event name
+    # that we have analized here.
+    evt_name = list(dict_events.keys())[idx_event]
+    plt.suptitle(f'evt {evt_name}')
     plt.show()
     
     
@@ -242,14 +225,20 @@ def show_circle_fit(list_events, rr, xc, yc, ncircline):
                 else:
                     data_show(list_events[k + i], ax = ax) # plot circle points from sparse matrix
                     for j in range(4): # Plot the four fit curve from the Taubin algoritm
-                        ax.add_artist( plt.Circle( ( xc[k + i, j]-1, yc[k + i, j]-1 ), rr[k + i, j], fill=False, color = 'y', alpha=0.5) )
+                        ax.add_artist( plt.Circle( ( xc[k + i, j]-1, yc[k + i, j]-1 ), rr[k + i, j], fill=False, color = 'grey', alpha=0.7) )
                     ax.set_title(f'{list_events[k+i]}') # setting title
             plt.show()
     else: # else plot all in one line
         fig, axs = plt.subplots(1, len(list_events), figsize = (int(20*len(list_events)/ncircline), 5))
-        for i, ax in zip(range(len(list_events)), axs.flat):
-            data_show(list_events[i], ax = ax)
-            for j in range(len(rr)):
-                ax.add_artist( plt.Circle( ( xc[i, j]-1, yc[i, j]-1 ), rr[i, j], fill=False, color = 'y', alpha=0.5) )
-            ax.set_title(f'{list_events[i]}')
+        if len(list_events)>1:
+            for i, ax in zip(range(len(list_events)), axs):
+                data_show(list_events[i], ax = ax)
+                for j in range(4):
+                    ax.add_artist( plt.Circle( ( xc[i, j]-1, yc[i, j]-1 ), rr[i, j], fill=False, color = 'grey', alpha=0.7) )
+                ax.set_title(f'{list_events[i]}')
+        else:
+            data_show(list_events[0], ax = axs)
+            for j in range(4):
+                axs.add_artist( plt.Circle( ( xc[0, j]-1, yc[0, j]-1 ), rr[0, j], fill=False, color = 'grey', alpha=0.7) )
+            axs.set_title(f'{list_events[0]}')
         plt.show()
