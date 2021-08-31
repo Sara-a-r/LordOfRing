@@ -4,17 +4,11 @@ This module fit multiple circle in sparse matrix
 
 import numpy as np
 import os
-try:
-    import pycuda.driver as cuda
-    import pycuda.autoinit
-    from pycuda import gpuarray
-    from pycuda.compiler import SourceModule
-    from pycuda.tools import DeviceData
-    GPU = True
-except:
-    GPU = False
+import traceback # for print the full error in try except
+import LordOfRings.core as core
+import sys
 
-def load_data(list_events):
+def load_data(list_events, maxhits = 64):
     """
     Parameters
     ----------
@@ -22,29 +16,48 @@ def load_data(list_events):
         List of .txt files that contain the sparse matrix of each events. These
         files are contained in the folder ./data/.
     
+     maxhits : int
+        Maximum number of points per event (i.e. the maximum number of ones in
+        each sparse matrix).
+    
     Returns
     -------
     dictionary
         Dictionary with keys the name of .txt files and with values given by the
-        x,y coordinates of the relative event.
+        x,y coordinates of the relative event in a list (i.e. if X, Y are the 
+         coordinates arrays so in the dictionary we obtain [X, Y]).
 
     """
+    # Create empty dictionary
     dict_data = {}
+    # for each event extract the data in the X, Y array, then put the arrays in the dictionary.
     for circle_name in list_events:
+        # initialize empty vector of zeros 
+        X = np.zeros(maxhits)
+        Y = np.zeros(maxhits)
+        # Load the matrix
         circle = np.loadtxt('data/'+circle_name)
+        # Find the ones positions in the matrix
         coord = np.argwhere(circle!=0)
-        X = coord[:, 0] + 1
-        Y = coord[:, 1] + 1
+        # add + 1 in order to start the coordinates from 1 instead of zero.
+        x_nonzero = coord[:, 0] + 1
+        y_nonzero = coord[:, 1] + 1
+        # fill the first elemento of X, Y (of lenght maxhits) with the nonzero coordinates extracted before
+        X[:len(x_nonzero)] = x_nonzero
+        Y[:len(y_nonzero)] = y_nonzero
+        # Write the coordinates in the dictionary at position described by the string 'circle_name'.
         dict_data[circle_name] = [X, Y]
     return dict_data
 
 
-def init_triplets(dict_events, maxhits = 64, t=10):
+def multi_ring_fit(dict_events, maxhits=64, 
+                   ptolemy_threshold = 0.2, triplet_threshold = 10,
+                   means= False, meanthr = 2, 
+                   rsearch = 0 , drsearch = 0, 
+                   GPU = True):
     """
-    init_triplets gives three array: the first contains the index of border hits
-    in the sparse matrix of each event whose reciprocal distance is greater then
-    t,the second contains the x coordinates of hits for all events in a single 
-    array, the third contains the y coordinates as before.
+    multi_ring_fit executes multiple circle fits on arbitrary number of events
+    giving the values predicted by the alghoritm. 
 
     Parameters
     ----------
@@ -52,260 +65,215 @@ def init_triplets(dict_events, maxhits = 64, t=10):
         Dictionary whose keys are the name of .txt files and whose values are  
         the x, y coordinates of the relative event in a list.
         This format is the output of the function LordOfRing.ringfit.load_data.
-    
-    maxhits : int
-        Maximum number of points per event (i.e. the maximum number of ones in
-        each sparse matrix).
-
-    t : float
-        Treshold value for the selection of the triplets, it defines the minimum 
-        reciprocal distance of the three points in the same triplet.
-
-    Returns
-    -------
-    ( 1d numpy-array, 1d numpy-array, 1d numpy-array ) [int, float, float]
-        The triplet and the coordinates in a tuple  (triplet, X, Y).
-
-    """
-    nevents = len(dict_events)  # number of events
-
-    # Triplet initialized as empty matrix
-    #            (event1)
-    #           | XMAX1[3] , XMIN1[3], YMAX1[3], YMIN1[3] |
-    # Triplet = |(event2)                                 |
-    #           | XMAX2[3] , XMIN2[3], YMAX2[3], YMIN2[3] |
-    # Later we will flat this array in 1D
-    triplet = np.zeros((nevents, 3*4))
-
-    # Data collected in two matrix (same struct of triplet but different
-    # number of columns)
-    X = np.zeros((nevents, maxhits))
-    Y = np.zeros((nevents, maxhits))
-
-    def d3(x, y, z, t, max):
-        # this function return boolean array of len = 3:
-        # - True if the d[i, j] > t
-        # - False otherwise. 
-        dxy = np.linalg.norm(x-y)
-        dyz = np.linalg.norm(y-z)
-        dxz = np.linalg.norm(x-z)
-        if max: # for xmax and ymax
-            if (dyz>t): # if the element y respects the threshold check only xy
-                return np.array([(dxy>t) and (dxz>t), True, True]).astype(bool)
-            if (dxz>t): # if the element x respects the threshold check only xy
-                return np.array([True, (dxy>t) and (dyz>t), True]).astype(bool)
-            # if both x and y don't respect the t.. check both of them (dxz and dyz)
-            return np.array([(dxz>t), (dyz>t), True]).astype(bool)
-        else: # for xmin and ymin 
-            if (dxy>t): # if the element y respects the threshold check only yz
-                return np.array([True, True, (dyz>t) and (dxz>t)]).astype(bool)
-            if (dxz>t): # if the element z respects the threshold check only yz
-                return np.array([True, (dyz>t) and (dxy>t), True]).astype(bool)
-
-            return np.array([True, (dxy>t), (dxz>t)]).astype(bool)
-
-    # Fill one event at time in the triplet matrix and X, Y matrix
-    for i, (xi, yi) in enumerate(dict_events.values()):
-        #xi, yi = rf.get_coord(circle) # Get the sorted coord of event
-        X[i, :len(xi)] = xi
-        Y[i, :len(yi)] = yi
-
-        # index sort based on x and y severaly (individualmente)
-        idx_sx = np.argsort(xi)
-        idx_sy = np.argsort(yi)
-
-        # coordinates sorted based on x and y severaly (individualmente)
-        xsortv = np.stack(( xi[idx_sx], yi[idx_sx]), axis=1)
-        ysortv = np.stack(( xi[idx_sy], yi[idx_sy]), axis=1)
-
-        # boolean check to stop the while loop
-        boolcheck = True
-        while boolcheck:
-            # boolean array of len equal to len(idx)
-            boolarrayx = np.ones(len(idx_sx)).astype(bool)
-            boolarrayy = np.ones(len(idx_sy)).astype(bool)
-
-            # Evaluate the reciprocal distance of the points in the same triplet
-            bminx = d3(*xsortv[:3], t, max = False)
-            bmaxx = d3(*xsortv[-3:], t, max = True)
-            bminy = d3(*ysortv[:3], t, max = False)
-            bmaxy = d3(*ysortv[-3:], t, max = True)
-
-            # if all the values in all the 4 bool array are true
-            if bminx.all() and bmaxx.all() and bminy.all() and bmaxy.all():
-                # we've the right triplets and we exit
-                boolcheck = False
-            else:
-                # sobstitute in boolarray the first/last three bool elements
-                boolarrayx[:3] = bminx
-                boolarrayx[-3:] = bmaxx
-                boolarrayy[:3] = bminy
-                boolarrayy[-3:] = bmaxy
-                
-                if (np.sum(boolarrayx) < 3) or (np.sum(boolarrayy) < 3): # if the element are finished
-                    boolcheck = False # get out with this index
-                else:
-                    # delete (with the mask boolarrayx) the elements that not 
-                    # satisfy the contition
-                    idx_sx = idx_sx[boolarrayx]
-                    xsortv = xsortv[boolarrayx]
-                    
-                    # same for the y index ordered array
-                    idx_sy = idx_sy[boolarrayy]
-                    ysortv = ysortv[boolarrayy]
-                
-        # sorting in the single triplet for the opposite variable (for ptolemy)
-        iy_sort_xmax = np.argsort(xsortv[-3:, 1]) # index sorted based on y for xmax
-        iy_sort_xmin = np.argsort(xsortv[:3, 1])  # ...
-        ix_sort_ymax = np.argsort(ysortv[-3:, 0])
-        ix_sort_ymin = np.argsort(ysortv[:3, 0])
         
-        # Fill the triplet with maximum and minumum relative to the event
-        triplet[i,  :3]  = idx_sx[-3:][iy_sort_xmax] + i * maxhits #XMAX
-        triplet[i, 3:6]  = idx_sx[ :3][iy_sort_xmin] + i * maxhits #XMIN
-        triplet[i, 6:9]  = idx_sy[-3:][ix_sort_ymax] + i * maxhits #YMAX
-        triplet[i, 9: ]  = idx_sy[ :3][ix_sort_ymin] + i * maxhits #YMIN
-    triplet = triplet.flatten()
-    X = X.flatten()
-    Y = Y.flatten()
-    return triplet.astype(int), X, Y
-    
-
-def multi_ring_fit(X, Y, triplet, MAXHITS=64):
-    """
-    multi_ring_fit executes multiple circle fits on arbitrary number of events
-    giving the values predicted by the alghoritm.
-
-    Parameters
-    ----------
-    X : 1d numpy-array of size (MAXHITS * nevent) [float]
-        The x coordinates of ones in all the sparse matrix (generated with 
-        LorfOfRings.ringfit.init_triplet). 
-
-    Y : 1d numpy-array of size (MAXHITS * nevent) [float]
-        The y coordinates of ones in all the sparse matrix (generated with 
-        LorfOfRings.ringfit.init_triplet).
-
-    triplet : 1d numpy-array of size (4 * 3 * nevent) [float]
-        Contain the indexs of the triplets chosen for the application of the 
-        Ptolemy theorem for each event (generated with
-        LorfOfRings.ringfit.init_triplet).
-
     maxhits : int
         Maximum number of points per event (i.e. the maximum number of ones in
-        each sparse matrix).
+        each sparse matrix). Is a good practice to keep this value as a multiple
+        of 2 if GPU is True (it will define the number of thread per block).
+        Default is 64.
+    
+    triplet_threshold : float 
+        Minimum distance between two points of the same triplet. Default is 10.
+        
+    ptolemy_threshold : float
+        Maximum value of the difference defined by the Ptolemy theorem: the points
+        for which this difference is greater than ptolemy_threshold are excluded
+        by the fit algorithm. Default is 0.2.
+    
+    means : boolean
+        If True find similar circle from each event and mean them. This remove
+        duplicate circles. Default is False.
+        
+    meanthr : float
+        Two circle are similar if their radius and center's coordinates 
+        difference ( evaluated separately ) are less then meanthr. 
+        Default is 2.
+    
+    rsearch : float
+        The radius that will be searched in the data after the fit, if zero 
+        the fourth argument returned by the function will be an empty 
+        numpy array. If zero no radius will be searched. 
+        Default is 0.
+    
+    drsearch : float
+        The error on the radius rsearch, the function will return all the 
+        events having a fitted radius in 
+        (rsearch - drsearch, rsearch + drsearch). 
+        Default is 0.
+        
+    GPU : boolean
+        If True execute the fit on the GPU, if False run a python iterative 
+        routine for the fit task. Default is True.
 
     Returns
     -------
-    ( 2d numpy-array, 2d numpy-array, 2d numpy-array ) [float, float, float]
+    ( 2d numpy-array, 2d numpy-array, 2d numpy-array, 1d numpy-array ) 
+    [float, float, float, string]
         The radius, X center, Ycenter of all the events in three array. These
-        values are distributed in different row, one for each event.
+        values are distributed in different row, one for each event. 
+        Last array contain the names of the events with the radius in the 
+        range searched with rsearch, drsearch founded by the algoritm.
 
     """
-    # Modify a constant (MAXHINTS) directly in the .cu file starting from MultiRing.cu
-    file_name = f"{MAXHITS}MultiRing.cu" # create file instead of overwrite the original 
+    # Extract the events name from the dictionary with the data
+    list_events = np.array(list(dict_events.keys())) # dict_events.keys() gives the names of the events in a dict format, 
+                                                     # with list() we turn that format into list and in the end 
+                                                     # we create the numpy array with that list
+    
+    nevents = len(dict_events) # the number of events is just the lenght of the dictionary
+    
+    # If the user wants the GPU and the GPU is ok with that
+    if core.GPU_enabled() and GPU: ############ GPU code ####################################
+        try: # This try is for the file 'file_name': this file is created in the user folder, if some 
+             # error occour it has to be removed otherwise the user will find this new file in his folder 
+             # without a good reason..
+            
+            ############## Create the file with the right MAXHITS ############################
+            # Modify a constant (MAXHINTS) directly in the .cu file starting from MultiRing.cu
+            file_name = f"{maxhits}MultiRing.cu" 
+            triplet_file_name = f"{maxhits}triplet.cu"# create file instead of overwrite the original 
+            # os.path.dirname() extract the directoty of the argument, in this case the argument is 
+            # __file__, this special variable (of python) contains the directory of the module and, 
+            # the module name, in this case the name is 'ringfit' and the __file__ variable will be 
+            # something like:
+            # '/content/drive/MyDrive/Progetto CMEPDA/LordOfRings/LordOfRings/ringfit.py'.
+            module_path = os.path.dirname(__file__)
+            # CODE FOR FILE_NAME
+            if os.path.exists(module_path + '/cuda/' + file_name)==False: # if doesn't exist in the precaricated files
+                # With this code we create a new file in the user folder with the new value of maxhits.
+                lines = open(module_path+'/cuda/MultiRing.cu', 'r').readlines() # with readlines() we 
+                                                                                # write the lines file 
+                                                                                # in a list: every line
+                                                                                # in an element of the list.
+                line_num = 4 # I know that maxhits is at line 4
+                lines[line_num] = f'#define MAXHITS (int) {maxhits}\n' # rewrite the line 4 with this new string
+                out = open(file_name, 'w') # open the output file (in the user folder)
+                out.writelines(lines) # rewrite the full file in this one
+                out.close() # close the file
+                # The file that will be execute is the new file
+                execute_name = file_name
+            else: # if the file 'file_name' is found
+                # the file that will be executed is the precaricated 
+                execute_name = module_path + '/cuda/' + file_name 
+            # CODE FOR TRIPLET_FILE_NAME (same of code for file_name)
+            if os.path.exists(module_path + '/cuda/' + triplet_file_name)==False: # if doesn't exist in the precaricated files
+                # With this code we create a new file in the user folder with the new value of maxhits.
+                lines = open(module_path+'/cuda/triplet.cu', 'r').readlines() # with readlines() we 
+                                                                                # write the lines file 
+                                                                                # in a list: every line
+                                                                                # in an element of the list.
+                line_num = 4 # I know that maxhits is at line 4
+                lines[line_num] = f'#define MAXHITS (int) {maxhits}\n' # rewrite the line 4 with this new string
+                out = open(triplet_file_name, 'w') # open the output file (in the user folder)
+                out.writelines(lines) # rewrite the full file in this one
+                out.close() # close the file
+                # The file that will be execute is the new file
+                triplet_execute_name = triplet_file_name
+            else: # if the file 'file_name' is found
+                # the file that will be executed is the precaricated 
+                triplet_execute_name = module_path + '/cuda/' + triplet_file_name 
 
-    if os.path.exists(file_name)==False: # if doesn't exist write it
-        lines = open(os.path.dirname(__file__)+'/MultiRing.cu', 'r').readlines()
-        line_num = 4 # I know that MAXHITS is at line 4
-        lines[line_num] = f'#define MAXHITS (int) {MAXHITS}\n'
-        out = open(file_name, 'w')
-        out.writelines(lines)
-        out.close()
+# TO DELETE # Why precaricate files? to speed up the code (generate cuda file is slow)
+            # call the function that manage cuda ################# FIT RUTINE #######################
+            rr, xc, yc = core.CUDA_fit(execute_name, triplet_execute_name, dict_events, 
+                                       maxhits, triplet_threshold, ptolemy_threshold, rsearch, drsearch)
+            #########################################################################################
+            if os.path.exists(file_name): # If the file was created in the user folder
+                os.remove(file_name)      # remove the file once the fit is over
+            if os.path.exists(triplet_file_name):
+                os.remove(triplet_file_name)
+        except:
+            traceback.print_exc() # print the entire error occurred
+            if os.path.exists(file_name): # If the file still exist
+                os.remove(file_name) # remove the file even if some error occours
+            if os.path.exists(triplet_file_name): # If the file still exist
+                os.remove(triplet_file_name)
+            # Like in C if some error occour the program will exit with a "return 1", for this 
+            # conventional reason we exit with 1 here in the exception.
+            sys.exit(1) # stop the code here if some error occour 
 
-    if GPU:
-        #load and compile Cuda/C file 
-        cudaCode = open(file_name,"r")
-        myCUDACode = cudaCode.read()
-        myCode = SourceModule(myCUDACode, no_extern_c=True)
-        #import kernel in python
-        MultiRing = myCode.get_function("multiring")
+    else: ################################## non-GPU code ############################################
+        if GPU and not core.GPU_enabled(): # If the user wants the gpu but the Device doesn't work
+            print('Device (GPU) not available, proceding on Host (CPU)...')
+        ############################# FIT RUTINE #####################################
+        # extract triplets and coordinates (merged in singles array)
+        triplet, X, Y = core.init_triplets(dict_events, maxhits = maxhits, t=triplet_threshold)
+        rr, xc, yc = core.py_fit(X, Y, triplet, maxhits, nevents, 
+                                 thr = ptolemy_threshold, min_pts = triplet_threshold, rsearch = rsearch, drsearch = drsearch)
+        ##############################################################################
+     
+    # Post-processing of the output from the fit rutines
+    # Reshape the result divided by events 
+    # example of array rr after the reshape:
+    #  
+    # evt0    r00     r01    r02    r03        
+    # evt1    r10     r11    r12    r13
+    # ...              ........ 
+    rr = np.reshape(rr, (nevents, 4))
+    xc = np.reshape(xc, (nevents, 4))
+    yc = np.reshape(yc, (nevents, 4))
 
-        nevents = int(len(X)/MAXHITS) # Deduce the number of events thanks to X and MAXHITS
-        typeofdata = np.float32 # Define the data type for the allocations
-        # Global memory allocation (empty variables)
-        g_xca = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata)
-        g_yca = gpuarray.zeros( 4*MAXHITS*nevents , typeofdata)
-        g_xm  = gpuarray.zeros( 4*nevents, typeofdata)
-        g_ym  = gpuarray.zeros( 4*nevents, typeofdata)
-        g_u   = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-        g_v   = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-        g_z   = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-        g_u2  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-        g_v2  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-        g_z2  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-        g_uz  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-        g_vz  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-        g_uv  = gpuarray.zeros( 4*MAXHITS*nevents, typeofdata )
-        g_zav = gpuarray.zeros( 4*nevents, typeofdata )
-        g_z2av= gpuarray.zeros( 4*nevents, typeofdata )
-        g_u2av= gpuarray.zeros( 4*nevents, typeofdata )
-        g_v2av= gpuarray.zeros( 4*nevents, typeofdata )
-        g_uvav= gpuarray.zeros( 4*nevents, typeofdata )
-        g_uzav= gpuarray.zeros( 4*nevents, typeofdata )
-        g_vzav= gpuarray.zeros( 4*nevents, typeofdata )
-        g_xc  = gpuarray.zeros( 4*nevents, typeofdata )
-        g_yc  = gpuarray.zeros( 4*nevents, typeofdata )
-        g_r   = gpuarray.zeros( 4*nevents, typeofdata )
-
-        # Load the data of the events
-        g_x = gpuarray.to_gpu(X.astype(typeofdata))
-        g_y = gpuarray.to_gpu(Y.astype(typeofdata))
-        g_triplet = gpuarray.to_gpu(triplet.astype(np.int32))
-
-        #define geometry of GPU
-        tripletsPerEvents = 4
-        nThreadsPerBlock = MAXHITS 
-        nBlockPerGrid = nevents * tripletsPerEvents
-        nGridsPerBlock = 1
-
-        # Call the kerrnel 
-        MultiRing(g_x, g_y, g_triplet, 
-                  g_xca, g_yca, 
-                  g_xm, g_ym,
-                  g_u, g_v, g_z, 
-                  g_u2, g_v2, g_z2,
-                  g_uz, g_vz, g_uv, 
-                  g_zav, g_z2av, g_u2av, g_v2av,
-                  g_uvav, g_uzav, g_vzav, np.int32(nevents), 
-                  g_xc, g_yc, g_r, 
-                  block=(nThreadsPerBlock, 1, 1),# this control the threadIdx.x (.y and .z)
-                  grid=(nBlockPerGrid, 1, 1)# this control blockIdx.x ...
-                  )
-        # Getting results
-        r, xc, yc = g_r.get(), g_xc.get(), g_yc.get()
-        # Reshape the result divided by events
-        r = np.reshape(r, (nevents, 4))
-        xc = np.reshape(xc, (nevents, 4))
-        yc = np.reshape(yc, (nevents, 4))
-
-        # Free the memory
-        g_x.gpudata.free()
-        g_y.gpudata.free()
-        g_xm.gpudata.free()
-        g_ym.gpudata.free()
-        g_u.gpudata.free()
-        g_v.gpudata.free()
-        g_z.gpudata.free()
-        g_u2.gpudata.free()
-        g_v2.gpudata.free()
-        g_z2.gpudata.free()
-        g_uz.gpudata.free()
-        g_vz.gpudata.free()
-        g_uv.gpudata.free()
-        g_zav.gpudata.free()
-        g_z2av.gpudata.free()
-        g_u2av.gpudata.free()
-        g_v2av.gpudata.free()
-        g_xc.gpudata.free()
-        g_yc.gpudata.free()
-        g_r.gpudata.free()
-
-    else:
-        r = np.zeros((nevents, 4))
-        xc = np.zeros((nevents, 4))
-        yc = np.zeros((nevents, 4))
-    # Remove the file .cu generated
-    os.remove(file_name)
-
-    return r, xc, yc
+    ############### Search of the radius rsearch ############################################
+    # The fit returns negative values of radius only if it found radius in rsearh +- drsearch
+    if rsearch != 0 : # if the user ask for a radius
+        ma_where = np.any(rr < 0, axis = 1) # with axis = 1 we search in each row, with any 
+                                            # we got a mask array of lenght nevents with
+                                            # true if in a row (in an event) there was a radius 
+                                            # in the right range
+        evt_pos = list_events[ma_where] # name of events with radius in (r-dr,r+dr)
+    else : evt_pos = np.asarray([]) # if the user didn't ask for a radius (rsearch = 0) evt_pos is an empty array
+    
+    # Make all radius values positive
+    rr = np.abs(rr)
+    ##########################################################################################
+    
+    ###### Mean of the similar radius ########################################################
+    # If the user want to prune the output radius we can just mean them event per event, this 
+    # operatin will slow down the GPU program and is not recomended.
+    if means:
+        # We will comment just for rad, for xc and yc is analogue.
+        #define array of zeros of final results
+        rad_mean = np.zeros(rr.shape)
+        xc_mean  = np.zeros(xc.shape)
+        yc_mean  = np.zeros(yc.shape)
+        # shape gives in a tuplet (a non-mutable list) the number of rows and columns of rr, in
+        # the position 0 of this tuple we have the number of rows of rr, in the position 1 the 
+        # number of columns of rr (4 in our case)
+        for i in range(rr.shape[0]):  # i runs on events (rows)
+            rad = rr[i] # fit results for each event:
+            xci = xc[i] #  this three are numpy arrays of one dimension 
+            yci = yc[i] #  containing the 4 values obtained for the single event 'i'.
+            for j in range(rr.shape[1]):  #j runs on results for event i (columns)
+                # We check the difference from the first element of rad (this first element will change in the 
+                # next loop's rounds) to all the other elements of rad, mask where this difference is lower than 
+                # the mimimum threshold to mean the values 
+                maskr = np.abs( rad - rad[0] ) < meanthr   # verify the difference (boolean array)
+                maskx = np.abs( xci - xci[0] ) < meanthr
+                masky = np.abs( yci - yci[0] ) < meanthr
+                # Logical and of masks for radius, xc and yc, only in the positions in wich this three are True
+                # we need to mean the values (because if radius, xc and yc are all similar so the circles are similar)
+                mask = maskr & maskx & masky  #boolean array (true where r, xc, yc are similar).
+                # Extract the element that will be mean
+                r = rad[mask] # delete element where mask is false (contain only similar element)
+                x = xci[mask]
+                y = yci[mask]
+                if rad[0] != 0: # If the checked radius is different from zero (a zero radius means a failed fit...)
+                    rad_mean[i, j] = np.mean(r)  # mean value of similar element
+                    xc_mean[ i, j] = np.mean(x)
+                    yc_mean[ i, j] = np.mean(y)
+                # Update rad with the only element non mediated before
+                rad = rad[~mask]  #delete similar element for the next iteration (now they are all different from rad[0])
+                xci = xci[~mask]
+                yci = yci[~mask]
+                # in this way rad[0] will be different in the next iteration...
+                if len(rad) <= 1: #if remain <= 1 element stop cycle on j (pass to the next event)
+                    if len(rad) == 1: #if remain only 1 element copy it in the results array
+                        rad_mean[i,j+1] = rad[0] # |
+                        xc_mean[i, j+1] = xci[0] # |
+                        yc_mean[i, j+1] = yci[0] # | --> (this stuff before break if len(rad) == 1)
+                    break # if len(rad) == 0 just go out because the last loop have detected the remaining circle as similar 
+        # this is only in the 'if mean', otherwise nothing change...
+        rr = rad_mean
+        xc = xc_mean
+        yc = yc_mean
+    return rr, xc, yc, evt_pos
