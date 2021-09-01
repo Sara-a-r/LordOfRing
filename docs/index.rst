@@ -8,14 +8,14 @@ Welcome to LordOfRings's documentation!
 
 LordOfRings is a package for efficiently identify rings in a sparse matrix using CUDA.
 
-
-.. image:: https://seeklogo.com/images/U/universita-di-pisa-logo-989F4E3120-seeklogo.com.png
-    :width: 30%
-    :align: right
-    :alt: University Logo
-
 Introduction
 ============
+
+
+.. image:: https://seeklogo.com/images/U/universita-di-pisa-logo-989F4E3120-seeklogo.com.png
+    :width: 20%
+    :align: right
+    :alt: University Logo
 
 This is a project for "Computing Methods for Experimental Pysics and Data Analysis" course of the Univeristy of Pisa. |br|
 The package provide, via CUDA and pycuda, a toolbox for GPU-accelerated fit of rings in a sparse matrix.
@@ -26,13 +26,6 @@ The package provide, via CUDA and pycuda, a toolbox for GPU-accelerated fit of r
 
    modules/LordOfRings
    notebooks/notebooks
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 
 .. |br| raw:: html
 
