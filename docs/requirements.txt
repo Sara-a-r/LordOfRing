@@ -9,3 +9,4 @@ matplotlib
 # Notebook in the docs
 nbsphinx
 pandoc
+IPython
