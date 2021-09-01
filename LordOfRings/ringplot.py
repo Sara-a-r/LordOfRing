@@ -82,9 +82,9 @@ def ptolemy_contourf(idx_event, dict_events, maxhits = 64, t=1, annotate = False
 
     """
     
-    font = {'size'   : 12} # resize all the fonts
+    font = {'size'   : 15} # resize all the fonts
     plt.rc('font', **font) #
-    fig, axs = plt.subplots(1,4,figsize = (21, 5), sharex = True)
+    fig, axs = plt.subplots(1,4,figsize = (15, 4), sharex = True)
 
     nevents = len(dict_events) # the len of the dictionary is equal to the number of events
     # initialize the triplets and the joined array for all the events in dict_events
@@ -156,14 +156,15 @@ def ptolemy_contourf(idx_event, dict_events, maxhits = 64, t=1, annotate = False
         values = np.unique(circle.ravel())[1:]
         for value in values:
             listval.append(value) 
+    plt.tight_layout()
     listval = np.unique(np.array(listval))
     colors = [ circ_plot.cmap(circ_plot.norm(value)) for value in listval]
-    
+
     # create a patch (proxy artist) for every color 
     textlabel = {'1':'Not catched by Ptolemy', '2':'Catched by Ptolemy', '3':'Triplet point'}
     patches = [ mpatches.Patch(color=colors[i], label="{tt}".format(tt=textlabel[str(num)]) ) for i, num in enumerate(listval.astype(int))]
     # put those patched as legend-handles into the legend
-    axs[0].legend(handles=patches, loc='upper left', bbox_to_anchor=(0., 1.2), ncol=len(listval), fontsize=10)
+    axs[0].legend(handles=patches, loc='upper left', bbox_to_anchor=(1., -.2), ncol=len(listval), fontsize=13)
     
     fig.subplots_adjust(right=0.9)
     cbar_ax = fig.add_axes([0.91, 0.2, 0.01, 0.6])
