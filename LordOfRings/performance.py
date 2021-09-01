@@ -10,9 +10,9 @@ import LordOfRings.ringfit as rf
 import time
 
 def get_true_value(list_event):
-    """
-    get_true_value return radius and center with the index of the membership of that circle to 
-    some event
+    """ get_true_value return radius and center with the index of the 
+    membership of that circle to some event.
+
     Parameters
     ----------
     list_events : list of str
@@ -64,6 +64,9 @@ def get_true_value(list_event):
 
 def hist_error(list_event, rr, xc, yc, bins = None,  ax = None, label = None, error_threshold = 50, **kwargs):
     """
+    hist_error plot the histogram of the percentage error of the fits against
+    the true values given in the toy dataset created by LordOfRings.generator.
+
     Parameters
     ----------
     list_events : list of str
@@ -193,7 +196,9 @@ def hist_error(list_event, rr, xc, yc, bins = None,  ax = None, label = None, er
 def speed_test(list_events, maxhits = 64, step = 8, ax = None):
     """
     This function compare the speed of the GPU code against the non-GPU code
-    as the number of events varies. The result are written in a matplotlib axes.
+    as the number of events varies. The result are written in a matplotlib 
+    axes.
+
     Parameters
     ----------
     list_events : list of str
