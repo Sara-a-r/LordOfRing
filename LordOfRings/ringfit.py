@@ -23,9 +23,9 @@ def load_data(list_events, maxhits = 64):
     Returns
     -------
     dictionary
-        Dictionary with keys the name of .txt files and with values given by the
-        x,y coordinates of the relative event in a list (i.e. if X, Y are the 
-         coordinates arrays so in the dictionary we obtain [X, Y]).
+        Dictionary with keys the name of .txt files and with values given by 
+        the x,y coordinates of the relative event in a list (i.e. if X, Y are 
+        the coordinates arrays so in the dictionary we obtain [X, Y]).
 
     """
     # Create empty dictionary
