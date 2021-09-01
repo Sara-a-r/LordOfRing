@@ -54,7 +54,7 @@ def datasort():
     # create a matrix: 
     # - on rows all the data with same number of circle (what comes before of 'circle_', 
     # - on cols the different data index (what come next of 'circle_', for example 1.txt  2.txt ...).
-    nrows = np.max(num_circ_list) # here we don't need + 1 because the number of circle start from 1
+    nrows = len(np.unique(num_circ_list)) # here we don't need + 1 because the number of circle start from 1
     ncols = np.max(num_data_list) + 1 # here we add + 1 because the number of data start from 0.
     # Reshape the events array (sorted by the number of circle in each event)
     reshaped_sorted_circle = np.reshape(sorted_circle, (nrows, ncols))
@@ -65,4 +65,4 @@ def datasort():
     # reordering every row in a loop with the index obtained before
     list_sorted = np.array([row[idxrow] for row, idxrow in zip(reshaped_sorted_circle, idx_sorted_data)])
     # (row[idxrow] is an array reordered with an array of index (idx_row))
-    return list_sorted
+    return list_sorted.squeeze()
