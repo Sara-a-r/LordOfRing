@@ -15,7 +15,6 @@
 # sys.path.insert(0, os.path.abspath('.'))
 import sys
 sys.path.insert(0,'../')
-import sphinx_rtd_theme
 
 # -- Project information -----------------------------------------------------
 
@@ -32,7 +31,10 @@ release = '0.0.0'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc', 'numpydoc', 'sphinx_rtd_theme'
+extensions = [
+        'sphinx.ext.autodoc', 
+        'numpydoc',
+        "nbsphinx"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -49,6 +51,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
+#html_theme = 'renku'
 html_theme = 'renku'
 
 # Add any paths that contain custom static files (such as style sheets) here,
