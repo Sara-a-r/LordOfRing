@@ -10,6 +10,9 @@ import sys
 
 def load_data(list_events, maxhits = 64):
     """
+    load_data gives the coordinates of the ones in the sparse matrix 
+    associated to the name of the file .txt in a dictionary.
+    
     Parameters
     ----------
     list_events : list of str
@@ -57,7 +60,7 @@ def multi_ring_fit(dict_events, maxhits=64,
                    GPU = True):
     """
     multi_ring_fit executes multiple circle fits on arbitrary number of events
-    giving the values predicted by the alghoritm. 
+    and gives the values predicted by the alghoritm. 
 
     Parameters
     ----------
@@ -173,7 +176,6 @@ def multi_ring_fit(dict_events, maxhits=64,
                 # the file that will be executed is the precaricated 
                 triplet_execute_name = module_path + '/cuda/' + triplet_file_name 
 
-# TO DELETE # Why precaricate files? to speed up the code (generate cuda file is slow)
             # call the function that manage cuda ################# FIT RUTINE #######################
             rr, xc, yc = core.CUDA_fit(execute_name, triplet_execute_name, dict_events, 
                                        maxhits, triplet_threshold, ptolemy_threshold, rsearch, drsearch)
@@ -202,7 +204,7 @@ def multi_ring_fit(dict_events, maxhits=64,
                                  thr = ptolemy_threshold, min_pts = triplet_threshold, rsearch = rsearch, drsearch = drsearch)
         ##############################################################################
      
-    # Post-processing of the output from the fit rutines
+    # Post-processing of the output from the fit routines
     # Reshape the result divided by events 
     # example of array rr after the reshape:
     #  
@@ -229,7 +231,7 @@ def multi_ring_fit(dict_events, maxhits=64,
     
     ###### Mean of the similar radius ########################################################
     # If the user want to prune the output radius we can just mean them event per event, this 
-    # operatin will slow down the GPU program and is not recomended.
+    # operation will slow down the GPU program and is not recomended.
     if means:
         # We will comment just for rad, for xc and yc is analogue.
         #define array of zeros of final results
