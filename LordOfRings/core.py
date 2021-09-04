@@ -5,9 +5,9 @@ import os
 
 try: # why try?
      # Because the modules (when they are imported) starts from the first line of code:
-     # when you do 'import LordOfRings.lore' you start importing numpy, then pycuda...
+     # when you do 'import LordOfRings.core' you start importing numpy, then pycuda...
      # if pycuda is not installed (i.e. no GPU) so this module gives error and then even the 
-     # module that has import lore give error and then nothing will works (even in python without gpu...)
+     # module that has import core give error and then nothing will works (even in python without gpu...)
     import pycuda.driver as cuda
     import pycuda.autoinit
     from pycuda import gpuarray
@@ -21,7 +21,15 @@ def GPU_enabled():
     """
     This function say to the user if the GPU is able to compute or if
     the installation of pycuda went wrong with a boolean variable.
+    
+
+    Returns
+    -------
+    GPU : Boolean
+        If GPU is True the the GPU is able to compute, else there as been an 
+        error in the installation of pycuda.
     """
+
     # Initalize a boolean variable 
     GPU = True
     try: # Try import pycuda and do some random stuff with that
@@ -34,6 +42,33 @@ def GPU_enabled():
 
 
 def CudaFindTriplet(dict_events, maxhits = 64, threshold = 10):
+    """
+    CudaFindTriplet uses the GPU to find the triplets that will be used in 
+    Ptolemy's theorem to fit the circle. It gives also the x and y coordinates 
+    of hits for all events.
+
+    Parameters
+    ----------
+    dict_events : dictionary
+        Dictionary whose keys are the name of .txt files and whose values are  
+        the x, y coordinates of the relative event in a list.
+        This format is the output of the function LordOfRing.ringfit.load_data.
+    
+    maxhits : int
+        Maximum number of points per event (i.e. the maximum number of ones in
+        each sparse matrix). Default is 64.
+
+    threshold : float
+        Treshold value for the selection of the triplets, it defines the minimum 
+        reciprocal distance of the three points in the same triplet. Default is
+        10.
+
+    Returns
+    -------
+    ( 1d numpy-array, 1d numpy-array, 1d numpy-array ) [float, float, float]
+        The triplet and the coordinates in a tuple  (triplet, X, Y).
+
+    """
     module_path = module_path = os.path.dirname(__file__)
     file_name = module_path + '/cuda/triplet.cu'
     X = np.array(list(dict_events.values()))[:, 0].ravel()
