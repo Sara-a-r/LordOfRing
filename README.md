@@ -3,14 +3,14 @@ A method to efficiently identify rings in a sparse matrix.
 
 ## How it works
 Given a sparse matrix containing rings as 1 values like:<br/>
-o &nbsp;&nbsp; o &nbsp;&nbsp;    o   &nbsp;&nbsp;    o   &nbsp;&nbsp;    o    &nbsp;&nbsp;    o   &nbsp;&nbsp; o&nbsp;&nbsp; o <br />
-o &nbsp;&nbsp; o &nbsp;&nbsp;    o   &nbsp;&nbsp;    o   &nbsp;&nbsp;    o    &nbsp;&nbsp;    o   &nbsp;&nbsp; o&nbsp;&nbsp; o <br />
-o &nbsp;&nbsp; o &nbsp;&nbsp;    o   &nbsp;&nbsp;    o   &nbsp;&nbsp;    o    &nbsp;&nbsp;    o   &nbsp;&nbsp; o&nbsp;&nbsp; o <br />
-o &nbsp;&nbsp; o &nbsp;&nbsp;    o   &nbsp;&nbsp;  **1** &nbsp;&nbsp;  **1**  &nbsp;&nbsp;    o   &nbsp;&nbsp; o&nbsp;&nbsp; o <br />
-o &nbsp;&nbsp; o &nbsp;&nbsp;  **1** &nbsp;&nbsp;    o   &nbsp;&nbsp;    o    &nbsp;&nbsp;  **1** &nbsp;&nbsp; o&nbsp;&nbsp; o <br />
-o &nbsp;&nbsp; o &nbsp;&nbsp;  **1** &nbsp;&nbsp;    o   &nbsp;&nbsp;    o    &nbsp;&nbsp;  **1** &nbsp;&nbsp; o&nbsp;&nbsp; o <br />
-o &nbsp;&nbsp; o &nbsp;&nbsp;    o   &nbsp;&nbsp;  **1** &nbsp;&nbsp;  **1**  &nbsp;&nbsp;    o   &nbsp;&nbsp; o&nbsp;&nbsp; o <br />
-o &nbsp;&nbsp; o &nbsp;&nbsp;    o   &nbsp;&nbsp;    o   &nbsp;&nbsp;    o    &nbsp;&nbsp;    o   &nbsp;&nbsp; o&nbsp;&nbsp; o <br />
+0 &nbsp;&nbsp; 0 &nbsp;&nbsp;    0   &nbsp;&nbsp;    0   &nbsp;&nbsp;    0    &nbsp;&nbsp;    0   &nbsp;&nbsp; 0&nbsp;&nbsp; 0 <br />
+0 &nbsp;&nbsp; 0 &nbsp;&nbsp;    0   &nbsp;&nbsp;    0   &nbsp;&nbsp;    0    &nbsp;&nbsp;    0   &nbsp;&nbsp; 0&nbsp;&nbsp; 0 <br />
+0 &nbsp;&nbsp; 0 &nbsp;&nbsp;    0   &nbsp;&nbsp;    0   &nbsp;&nbsp;    0    &nbsp;&nbsp;    0   &nbsp;&nbsp; 0&nbsp;&nbsp; 0 <br />
+0 &nbsp;&nbsp; 0 &nbsp;&nbsp;    0   &nbsp;&nbsp;  **1** &nbsp;&nbsp;  **1**  &nbsp;&nbsp;    0   &nbsp;&nbsp; 0&nbsp;&nbsp; 0 <br />
+0 &nbsp;&nbsp; 0 &nbsp;&nbsp;  **1** &nbsp;&nbsp;    0   &nbsp;&nbsp;    0    &nbsp;&nbsp;  **1** &nbsp;&nbsp; 0&nbsp;&nbsp; 0 <br />
+0 &nbsp;&nbsp; 0 &nbsp;&nbsp;  **1** &nbsp;&nbsp;    0   &nbsp;&nbsp;    0    &nbsp;&nbsp;  **1** &nbsp;&nbsp; 0&nbsp;&nbsp; 0 <br />
+0 &nbsp;&nbsp; 0 &nbsp;&nbsp;    0   &nbsp;&nbsp;  **1** &nbsp;&nbsp;  **1**  &nbsp;&nbsp;    0   &nbsp;&nbsp; 0&nbsp;&nbsp; 0 <br />
+0 &nbsp;&nbsp; 0 &nbsp;&nbsp;    0   &nbsp;&nbsp;    0   &nbsp;&nbsp;    0    &nbsp;&nbsp;    0   &nbsp;&nbsp; 0&nbsp;&nbsp; 0 <br />
 
 The module LordOfRings evaluates radius and center of each ring using GPU <br/>
 acceleration.
