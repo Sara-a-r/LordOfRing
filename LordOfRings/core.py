@@ -65,21 +65,55 @@ def CudaFindTriplet(dict_events, maxhits = 64, threshold = 10):
 
     Returns
     -------
-    ( 1d numpy-array, 1d numpy-array, 1d numpy-array ) [float, float, float]
+    ( 1d numpy-array, 1d numpy-array, 1d numpy-array ) [int, float, float]
         The triplet and the coordinates in a tuple  (triplet, X, Y).
 
     """
-    module_path = module_path = os.path.dirname(__file__)
-    file_name = module_path + '/cuda/triplet.cu'
+
+    #--------------------------------FILE_NAME---------------------------------#
+    # find the folder of core module and return the entire path
+    module_path = os.path.dirname(__file__)
+    # define the file name with the correct number maxhits
+    triplet_file_name = f"{maxhits}triplet.cu"
+
+    #---------> FILE DOESN'T EXIST 
+    # if doesn't exist in the precaricated files we create a new file in the 
+    # user folder with the new value of maxhits.
+    if os.path.exists(module_path + '/cuda/' + triplet_file_name)==False:
+        # with readlines() we write the lines file in a list: every line in an 
+        # element of the list.
+        lines = open(module_path+'/cuda/triplet.cu', 'r').readlines()                                                         
+        line_num = 4 # I know that maxhits is at line 4
+        # rewrite the line 4 with this new string
+        lines[line_num] = f'#define MAXHITS (int) {maxhits}\n' 
+        # open the output file (in the user folder)
+        out = open(triplet_file_name, 'w') 
+        # rewrite the full file in this one
+        out.writelines(lines) 
+        out.close() # close the file
+        # The file that will be execute is the new file
+        triplet_execute_name = triplet_file_name
+    #---------> FILE EXIST 
+    # if the file 'file_name' is found the file that will be executed is the 
+    # precaricated 
+    else: 
+        triplet_execute_name = module_path + '/cuda/' + triplet_file_name 
+
+    #------------------------------EXTRACT DATA--------------------------------#
+    # extract values from dictionary and flatten the array
     X = np.array(list(dict_events.values()))[:, 0].ravel()
     Y = np.array(list(dict_events.values()))[:, 1].ravel()
     nevents = len(dict_events)
+    
+    #------------------------------LOAD CUDA FILE------------------------------#
     #load and compile Cuda/C file 
-    cudaCode = open(file_name,"r")
+    cudaCode = open(triplet_execute_name,"r")
     myCUDACode = cudaCode.read()
     myCode = SourceModule(myCUDACode, no_extern_c=True)
-    #import kernel in python
+    # import kernel in python
     FindTriplet = myCode.get_function("triplet")
+
+    #----------------------------------MEMORY----------------------------------#
     typeofdata = np.float32 # Define the data type for the allocations
     # Global memory allocation (empty variables)
     g_triplet   = gpuarray.zeros(12 * nevents, np.int32)
@@ -87,6 +121,7 @@ def CudaFindTriplet(dict_events, maxhits = 64, threshold = 10):
     # Load the data of the events
     g_x = gpuarray.to_gpu(X.astype(typeofdata))
     g_y = gpuarray.to_gpu(Y.astype(typeofdata))
+    
     #define geometry of GPU
     tripletsPerEvents = 4
     nThreadsPerBlock = maxhits
@@ -94,7 +129,8 @@ def CudaFindTriplet(dict_events, maxhits = 64, threshold = 10):
     nGridsPerBlock = 1
     # Call the kerrnel 
     FindTriplet(g_x, g_y, g_triplet, g_vec, np.float32(threshold),
-              block=(nThreadsPerBlock, 1, 1),# this control the threadIdx.x (.y and .z)
+              block=(nThreadsPerBlock, 1, 1),# this control the threadIdx.x 
+                                             # (.y and .z)
               grid=(nBlockPerGrid, 1, 1)# this control blockIdx.x ...
               )
     # Getting results
@@ -104,6 +140,7 @@ def CudaFindTriplet(dict_events, maxhits = 64, threshold = 10):
     g_vec.gpudata.free()
     g_y.gpudata.free()
     g_triplet.gpudata.free()
+
     return triplet, X, Y
     
 def init_triplets(dict_events, maxhits = 64, t=10, GPU = False):
