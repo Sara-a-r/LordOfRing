@@ -12,3 +12,4 @@ This is the core module of the project.
    ringplot
    ringfit
    performance
+   core
